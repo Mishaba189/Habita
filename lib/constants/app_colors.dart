@@ -10,4 +10,9 @@ class AppColors {
     begin: Alignment.bottomLeft,
     end: Alignment.topRight,
   );
+  static const LinearGradient greenGradient = LinearGradient(
+    colors: [Color(0xFF37C871), Color(0xFF5FE394)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
