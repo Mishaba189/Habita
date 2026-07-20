@@ -438,7 +438,45 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.more_vert, size: 20, color: AppColors.blackGrey),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20, color: AppColors.blackGrey),
+                color: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                onSelected: (String value) {
+                  if (value == 'edit') {
+                    // Edit action
+                  } else if (value == 'delete') {
+                    // Delete action
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Text(
+                      'Edit',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.blackGrey,
+                      ),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.blackGrey,
+                      ),
+                    ),
+                  ),
+                ],
+              )
             ],
           ),
         ],
@@ -475,7 +513,45 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(Icons.more_vert, size: 20, color: AppColors.blackGrey),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20, color: AppColors.blackGrey),
+                color: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                onSelected: (String value) {
+                  if (value == 'edit') {
+                    // Edit action
+                  } else if (value == 'delete') {
+                    // Delete action
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Text(
+                      'Edit',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.blackGrey,
+                      ),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.blackGrey,
+                      ),
+                    ),
+                  ),
+                ],
+              )
             ],
           ),
           const SizedBox(height: 12),
