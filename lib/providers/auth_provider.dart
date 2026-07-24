@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 
@@ -13,6 +13,11 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  static const String keyIsLoggedIn = 'is_logged_in';
+  static const String keyUserEmail = 'remember_user_email';
+  static const String keyUserPassword = 'remember_user_password';
+  static const String keyIsRememberMe = 'remember_me_status';
+
   Future<void> _setLoading(bool value) async {
     _isLoading = value;
     notifyListeners();
@@ -22,6 +27,34 @@ class AuthProvider with ChangeNotifier {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+
+  final ValueNotifier<bool> rememberMeNotifier = ValueNotifier<bool>(false);
+
+  Future<void> loadSavedPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isRemembered = prefs.getBool(keyIsRememberMe) ?? false;
+
+    rememberMeNotifier.value = isRemembered;
+    if (isRemembered) {
+      emailController.text = prefs.getString(keyUserEmail) ?? '';
+      passwordController.text = prefs.getString(keyUserPassword) ?? '';
+    }
+  }
+
+  Future<void> _saveSession({required bool rememberMe, String? email, String? password}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyIsLoggedIn, true);
+    await prefs.setBool(keyIsRememberMe, rememberMe);
+
+    if (rememberMe && email != null && password != null) {
+      await prefs.setString(keyUserEmail, email);
+      await prefs.setString(keyUserPassword, password);
+    } else {
+      await prefs.remove(keyUserEmail);
+      await prefs.remove(keyUserPassword);
+    }
+  }
+
   Future<void> _saveUserToFirestore({
     required String uid,
     required String email,
@@ -42,6 +75,7 @@ class AuthProvider with ChangeNotifier {
       });
     }
   }
+
   // Register User
   Future<void> register(String email, String password) async {
     _setLoading(true);
@@ -76,7 +110,6 @@ class AuthProvider with ChangeNotifier {
       );
 
       if (userCredential.user != null) {
-        // Fetch existing name from Firestore if it exists, otherwise fallback
         final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
         String existingName = doc.exists ? (doc.data()?['name'] ?? 'User') : 'User';
 
@@ -84,6 +117,12 @@ class AuthProvider with ChangeNotifier {
           uid: userCredential.user!.uid,
           email: userCredential.user!.email ?? email,
           name: existingName,
+        );
+
+        await _saveSession(
+          rememberMe: rememberMeNotifier.value,
+          email: email,
+          password: password,
         );
       }
       notifyListeners();
@@ -128,6 +167,7 @@ class AuthProvider with ChangeNotifier {
           email: userCredential.user!.email ?? '',
           name: userCredential.user!.displayName ?? 'Google User',
         );
+        await _saveSession(rememberMe: false);
       }
       notifyListeners();
     } on FirebaseAuthException catch (e) {
@@ -137,6 +177,17 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyIsLoggedIn, false);
+    // Optionally clear remembered credentials on explicit sign out if desired:
+    // await prefs.remove(keyUserEmail);
+    // await prefs.remove(keyUserPassword);
+    // await prefs.setBool(keyIsRememberMe, false);
+    notifyListeners();
   }
 
   void clearAll() {

@@ -1,8 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:habita/screens/auth_screen.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/create_habit_dialog.dart';
 
 class HabitItem {
   final String title;
@@ -56,6 +60,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     return Scaffold(
       backgroundColor: AppColors.grey,
       body: SafeArea(
@@ -65,15 +70,24 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Date Subheader
-              Text(
-                "Sun, 1 March 2022",
-                style: GoogleFonts.nunito(
-                  color: AppColors.blackGrey,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Sun, 1 March 2022",
+                    style: GoogleFonts.nunito(
+                      color: AppColors.blackGrey,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  IconButton(onPressed: () {
+                    authProvider.signOut();
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AuthScreen()));
+                  }, icon:Icon(Icons.logout_outlined),color: AppColors.orange,)
+                ],
               ),
-              const SizedBox(height: 4),
+              // const SizedBox(height: 4),
               // Greeting Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -366,7 +380,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         child: FloatingActionButton(
-          onPressed: () {},
+          onPressed: () => showCreateHabitDialog(context),
           backgroundColor: Colors.transparent,
           elevation: 0,
           highlightElevation: 0,

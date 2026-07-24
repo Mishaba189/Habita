@@ -14,7 +14,6 @@ class AuthScreen extends StatelessWidget {
   final ValueNotifier<AuthView> _authView = ValueNotifier<AuthView>(AuthView.logIn);
   final ValueNotifier<bool> _isPasswordVisible = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isConfirmPasswordVisible = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _isRememberMe = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isEmailSent = ValueNotifier<bool>(false);
 
   Future<void> _submitForm(bool isSignUp, BuildContext context, AuthProvider authProvider) async {
@@ -60,126 +59,130 @@ class AuthScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.grey,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: ValueListenableBuilder<AuthView>(
-            valueListenable: _authView,
-            builder: (context, view, _) {
-              if (view == AuthView.forgotPassword) {
-                return _buildForgotPasswordView(context);
-              }
-              bool isSignUp = (view == AuthView.signUp);
-              return Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(isSignUp,context),
-                      const SizedBox(height: 40),
-                      if (isSignUp)
-                        _buildTextField(
-                          label: 'Name',
-                          controller: authProvider.nameController,
-                          textInputAction: TextInputAction.next,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Name is required';
-                            return null;
-                          },
-                        ),
+        child: FutureBuilder<void>(
+          future: authProvider.loadSavedPreferences(),
+          builder: (context, snapshot) {
 
-                      _buildTextField(
-                        label: "Email",
-                        controller: authProvider.emailController,
-                        textInputAction: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Email is required';
-                          if (!value.contains('@')) return 'Enter a valid email';
-                          return null;
-                        },
-                      ),
+            return SingleChildScrollView(
+              child: ValueListenableBuilder<AuthView>(
+                valueListenable: _authView,
+                builder: (context, view, _) {
+                  if (view == AuthView.forgotPassword) {
+                    return _buildForgotPasswordView(context);
+                  }
+                  bool isSignUp = (view == AuthView.signUp);
+                  return Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(isSignUp, context),
+                          const SizedBox(height: 40),
+                          if (isSignUp)
+                            _buildTextField(
+                              label: 'Name',
+                              controller: authProvider.nameController,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) return 'Name is required';
+                                return null;
+                              },
+                            ),
 
-                      _buildTextField(
-                        controller: authProvider.passwordController,
-                        label: "Password",
-                        isPassword: true,
-                        visibilityNotifier: _isPasswordVisible,
-                        // If it's sign up, going next. If log in, submit directly via checkmark!
-                        textInputAction: isSignUp ? TextInputAction.next : TextInputAction.done,
-                        onFieldSubmitted: (_) {
-                          if (!isSignUp) {
-                            _submitForm(isSignUp, context, authProvider);
-                          }
-                        },
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) return 'Password is required';
-                          if (value.length < 6) return 'Password must be at least 6 character';
-                          return null;
-                        },
-                      ),
+                          _buildTextField(
+                            label: "Email",
+                            controller: authProvider.emailController,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) return 'Email is required';
+                              if (!value.contains('@')) return 'Enter a valid email';
+                              return null;
+                            },
+                          ),
 
-                      if (isSignUp)
-                        _buildTextField(
-                          controller: authProvider.confirmPasswordController,
-                          label: "Password Confirmation",
-                          isPassword: true,
-                          visibilityNotifier: _isConfirmPasswordVisible,
-                          textInputAction: TextInputAction.done, // Shows checkmark/done on keyboard
-                          onFieldSubmitted: (_) => _submitForm(isSignUp, context, authProvider), // Calls button action
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) return 'Please confirm your password';
-                            if (authProvider.passwordController.text.trim() != authProvider.confirmPasswordController.text.trim()) {
-                              return 'Password mismatch';
-                            }
-                            return null;
-                          },
-                        ),
-                      if (!isSignUp) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                          _buildTextField(
+                            controller: authProvider.passwordController,
+                            label: "Password",
+                            isPassword: true,
+                            visibilityNotifier: _isPasswordVisible,
+                            textInputAction: isSignUp ? TextInputAction.next : TextInputAction.done,
+                            onFieldSubmitted: (_) {
+                              if (!isSignUp) {
+                                _submitForm(isSignUp, context, authProvider);
+                              }
+                            },
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) return 'Password is required';
+                              if (value.length < 6) return 'Password must be at least 6 character';
+                              return null;
+                            },
+                          ),
+
+                          if (isSignUp)
+                            _buildTextField(
+                              controller: authProvider.confirmPasswordController,
+                              label: "Password Confirmation",
+                              isPassword: true,
+                              visibilityNotifier: _isConfirmPasswordVisible,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _submitForm(isSignUp, context, authProvider),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) return 'Please confirm your password';
+                                if (authProvider.passwordController.text.trim() != authProvider.confirmPasswordController.text.trim()) {
+                                  return 'Password mismatch';
+                                }
+                                return null;
+                              },
+                            ),
+                          if (!isSignUp) ...[
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                ValueListenableBuilder<bool>(
-                                  valueListenable: _isRememberMe,
-                                  builder: (context, value, _) => Checkbox(
-                                      activeColor: AppColors.blackGrey,
-                                      checkColor: AppColors.grey,
-                                      value: value, onChanged: (v) => _isRememberMe.value = v!
-                                  ),
+                                Row(
+                                  children: [
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: authProvider.rememberMeNotifier,
+                                      builder: (context, value, _) => Checkbox(
+                                          activeColor: AppColors.blackGrey,
+                                          checkColor: AppColors.grey,
+                                          value: value,
+                                          onChanged: (v) => authProvider.rememberMeNotifier.value = v!
+                                      ),
+                                    ),
+                                    Text("Remember me", style: GoogleFonts.nunito()),
+                                  ],
                                 ),
-                                Text("Remember me", style: GoogleFonts.nunito()),
+                                TextButton(
+                                  onPressed: () => _authView.value = AuthView.forgotPassword,
+                                  child: Text("Forgot Password?", style: GoogleFonts.nunito(color: AppColors.orange, fontWeight: FontWeight.bold)),
+                                ),
                               ],
                             ),
-                            TextButton(
-                              onPressed: () => _authView.value = AuthView.forgotPassword,
-                              child: Text("Forgot Password?", style: GoogleFonts.nunito(color: AppColors.orange, fontWeight: FontWeight.bold)),
-                            ),
                           ],
-                        ),
-                      ],
-                      const SizedBox(height: 30),
-                      _buildButton(
-                        isSignUp ? "Sign Up" : "Log In",
-                            () => _submitForm(isSignUp, context, authProvider),
-                        context.watch<AuthProvider>().isLoading,
+                          const SizedBox(height: 30),
+                          _buildButton(
+                            isSignUp ? "Sign Up" : "Log In",
+                                () => _submitForm(isSignUp, context, authProvider),
+                            context.watch<AuthProvider>().isLoading,
+                          ),
+                          const SizedBox(height: 40),
+                          Center(child: Text(isSignUp ? "Or sign up with:" : "Or log in with:", style: GoogleFonts.nunito(color: const Color(0xFF666666)))),
+                          const SizedBox(height: 20),
+                          _buildSocialButton(context),
+                        ],
                       ),
-                      const SizedBox(height: 40),
-                      Center(child: Text(isSignUp ? "Or sign up with:" : "Or log in with:", style: GoogleFonts.nunito(color: const Color(0xFF666666)))),
-                      const SizedBox(height: 20),
-                      _buildSocialButton(context),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ),
     );
   }
-
-
 
   Widget _buildTextField({
     required String label,
@@ -187,8 +190,8 @@ class AuthScreen extends StatelessWidget {
     bool isPassword = false,
     ValueNotifier<bool>? visibilityNotifier,
     String? Function(String?)? validator,
-    TextInputAction? textInputAction, // Added parameter
-    void Function(String)? onFieldSubmitted, // Added parameter
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,8 +205,8 @@ class AuthScreen extends StatelessWidget {
               controller: controller,
               obscureText: isPassword ? !isVisible : false,
               style: GoogleFonts.nunito(),
-              textInputAction: textInputAction ?? TextInputAction.next, // Handles keyboard action button
-              onFieldSubmitted: onFieldSubmitted, // Triggers function on keyboard action tap
+              textInputAction: textInputAction ?? TextInputAction.next,
+              onFieldSubmitted: onFieldSubmitted,
               decoration: InputDecoration(
                 filled: true, fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -243,6 +246,7 @@ class AuthScreen extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildForgotPasswordView(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     return Padding(
@@ -294,8 +298,8 @@ class AuthScreen extends StatelessWidget {
                       _buildTextField(
                         controller: authProvider.emailController,
                         label: "Email",
-                        textInputAction: TextInputAction.done, // Changes keyboard button to checkmark/done
-                        onFieldSubmitted: (_) => _submitForgotPassword(context, authProvider), // Triggers submit on keyboard tap
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _submitForgotPassword(context, authProvider),
                       ),
                       _buildButton(
                         "Submit",
@@ -303,7 +307,6 @@ class AuthScreen extends StatelessWidget {
                         context.watch<AuthProvider>().isLoading,
                       ),
                     ] else ...[
-                      // Spam folder notice
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -326,7 +329,6 @@ class AuthScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 30),
-                      // Resend button
                       Center(
                         child: TextButton(
                           onPressed: context.watch<AuthProvider>().isLoading
@@ -338,7 +340,6 @@ class AuthScreen extends StatelessWidget {
                                 const SnackBar(content: Text("Reset email resent successfully!")),
                               );
                             } catch (error) {
-
                               final errorMessage = authProvider.getReadableMessage(error.toString());
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
                             }
@@ -369,7 +370,7 @@ class AuthScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(bool isSignUp,BuildContext context) {
+  Widget _buildHeader(bool isSignUp, BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -392,11 +393,12 @@ class AuthScreen extends StatelessWidget {
       ],
     );
   }
+
   Widget _buildSocialButton(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     return InkWell(
-     onTap: () async {
+      onTap: () async {
         try {
           await authProvider.signInWithGoogle();
           debugPrint('Google Login Successful');
@@ -416,7 +418,7 @@ class AuthScreen extends StatelessWidget {
           }
         }
       },
-      borderRadius: BorderRadius.circular(8), // Matches container border radius for ripple effect
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
