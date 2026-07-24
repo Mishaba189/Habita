@@ -12,7 +12,20 @@
           "package_name": "com.example.habita"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "428106498244-ne4r56ciu6dhfr4gel5l8fteiu8f1tvn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.habita",
+            "certificate_hash": "7ff4787e5576aa47adb83d8cb5ed55547b1a872d"
+          }
+        },
+        {
+          "client_id": "428106498244-3ma7ipq51sflk8gdc9bp6oa78f711os6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBPwPOVs0gi4HRNCWKeUMOLS1C70kdgB4k"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "428106498244-3ma7ipq51sflk8gdc9bp6oa78f711os6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "428106498244-8ual8i2kppnsd42rrgisveo34hgf7cjb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.habita"
+              }
+            }
+          ]
         }
       }
     }

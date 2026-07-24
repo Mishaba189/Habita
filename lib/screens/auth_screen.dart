@@ -167,7 +167,7 @@ class AuthScreen extends StatelessWidget {
                       const SizedBox(height: 40),
                       Center(child: Text(isSignUp ? "Or sign up with:" : "Or log in with:", style: GoogleFonts.nunito(color: const Color(0xFF666666)))),
                       const SizedBox(height: 20),
-                      _buildSocialButton(),
+                      _buildSocialButton(context),
                     ],
                   ),
                 ),
@@ -392,13 +392,43 @@ class AuthScreen extends StatelessWidget {
       ],
     );
   }
+  Widget _buildSocialButton(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-  Widget _buildSocialButton() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black12)),
-      child: SvgPicture.asset('assets/icons/google.svg', height: 24, width: 24),
+    return InkWell(
+     onTap: () async {
+        try {
+          await authProvider.signInWithGoogle();
+          debugPrint('Google Login Successful');
+          authProvider.clearAll();
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => BottomMenu()),
+            );
+          }
+        } catch (error) {
+          final errorMessage = authProvider.getReadableMessage(error.toString());
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(errorMessage)),
+            );
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(8), // Matches container border radius for ripple effect
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Center(
+          child: SvgPicture.asset('assets/icons/google.svg', height: 24, width: 24),
+        ),
+      ),
     );
   }
 }

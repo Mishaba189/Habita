@@ -1,8 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import '../models/user_model.dart';
+
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -16,16 +22,46 @@ class AuthProvider with ChangeNotifier {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
-
+  Future<void> _saveUserToFirestore({
+    required String uid,
+    required String email,
+    required String name,
+  }) async {
+    final userDocRef = _firestore.collection('users').doc(uid);
+    final UserModel userModel = UserModel(
+      uid: uid,
+      email: email,
+      name: name,
+    );
+    final docSnapshot = await userDocRef.get();
+    if (!docSnapshot.exists) {
+      await userDocRef.set(userModel.toMap());
+    } else {
+      await userDocRef.update({
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+    }
+  }
   // Register User
   Future<void> register(String email, String password) async {
     _setLoading(true);
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        await _saveUserToFirestore(
+          uid: userCredential.user!.uid,
+          email: email,
+          name: nameController.text.trim().isNotEmpty ? nameController.text.trim() : 'User',
+        );
+      }
       notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw e.message!;
-    }finally{
+    } finally {
       _setLoading(false);
     }
   }
@@ -34,11 +70,26 @@ class AuthProvider with ChangeNotifier {
   Future<void> logIn(String email, String password) async {
     _setLoading(true);
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        // Fetch existing name from Firestore if it exists, otherwise fallback
+        final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+        String existingName = doc.exists ? (doc.data()?['name'] ?? 'User') : 'User';
+
+        await _saveUserToFirestore(
+          uid: userCredential.user!.uid,
+          email: userCredential.user!.email ?? email,
+          name: existingName,
+        );
+      }
       notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw e.message!;
-    }finally{
+    } finally {
       _setLoading(false);
     }
   }
@@ -50,12 +101,45 @@ class AuthProvider with ChangeNotifier {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       throw e.message!;
-    }finally{
+    } finally {
       _setLoading(false);
     }
   }
 
-  void clearAll(){
+  // Google Sign In
+  Future<void> signInWithGoogle() async {
+    _setLoading(true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        await _saveUserToFirestore(
+          uid: userCredential.user!.uid,
+          email: userCredential.user!.email ?? '',
+          name: userCredential.user!.displayName ?? 'Google User',
+        );
+      }
+      notifyListeners();
+    } on FirebaseAuthException catch (e) {
+      throw e.message!;
+    } catch (e) {
+      throw 'An error occurred during Google Sign-In: $e';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void clearAll() {
     nameController.clear();
     passwordController.clear();
     emailController.clear();
@@ -78,6 +162,8 @@ class AuthProvider with ChangeNotifier {
         return 'Too many attempts. Please try again later.';
       case 'The supplied auth credential is incorrect, malformed or has expired.':
         return 'Incorrect email or password';
+      case 'The email address is already in use by another account.':
+        return 'The email address is already in use by another account.';
       default:
         return 'An error occurred. Please try again.';
     }
