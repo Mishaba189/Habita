@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:habita/screens/auth_screen.dart';
+import 'package:habita/screens/your_goal_screen.dart';
+import 'package:habita/screens/your_habit_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
@@ -239,7 +241,9 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => YourHabitScreen()));
+                          },
                           child: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return AppColors.orangeGradient.createShader(bounds);
@@ -314,7 +318,9 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => YourGoalsScreen()));
+                          },
                           child: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return AppColors.orangeGradient.createShader(bounds);

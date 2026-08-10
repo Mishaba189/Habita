@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:habita/screens/success_page.dart';
-
 import '../constants/app_colors.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/habit_provider.dart';
 
 void showCreateHabitDialog(BuildContext context) {
   final TextEditingController goalController = TextEditingController();
   final TextEditingController habitNameController = TextEditingController();
   final TextEditingController customPeriodController = TextEditingController();
 
-  // Expanded options list including 'Custom'
   final List<String> periodOptions = [
     '1 Week (7 Days)',
     '2 Weeks (14 Days)',
@@ -25,24 +26,23 @@ void showCreateHabitDialog(BuildContext context) {
     'Weekends Only',
     'Specific Days',
     'Weekly',
-    'Random'
+    'Monthly',
   ];
 
-  // Days of the week list for the multi-select grid
   final List<String> daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // State variables for selected options
   String selectedPeriod = '1 Month (30 Days)';
   String selectedHabitType = 'Everyday';
-
-  // Set to track multiple selected days when 'Specific Days' is active
   final Set<String> selectedSpecificDays = {'Mon', 'Wed', 'Fri'};
 
   showDialog(
     context: context,
-    builder: (BuildContext context) {
+    barrierDismissible: false,
+    builder: (BuildContext dialogContext) {
       return StatefulBuilder(
         builder: (context, setState) {
+          final habitProvider = Provider.of<HabitProvider>(context);
+
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
@@ -56,7 +56,7 @@ void showCreateHabitDialog(BuildContext context) {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Row with Title and Close Button
+                    // Header Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -69,7 +69,7 @@ void showCreateHabitDialog(BuildContext context) {
                           ),
                         ),
                         InkWell(
-                          onTap: () => Navigator.pop(context),
+                          onTap: habitProvider.isLoading ? null : () => Navigator.pop(dialogContext),
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
@@ -175,7 +175,6 @@ void showCreateHabitDialog(BuildContext context) {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: isSelected ? AppColors.yellow : Colors.white,
-                                // gradient: isSelected ? AppColors.orangeGradient : null,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isSelected ? AppColors.orange : const Color(0xFFDEDEDE),
@@ -195,15 +194,22 @@ void showCreateHabitDialog(BuildContext context) {
                       ),
                     ),
 
-                    // Conditionally show custom period text field
+                    // Conditional Custom Period Field
                     if (selectedPeriod == 'Custom') ...[
                       const SizedBox(height: 10),
                       TextField(
                         controller: customPeriodController,
                         style: GoogleFonts.nunito(fontSize: 14),
+                        keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                          hintText: "Enter custom period (e.g., 45 Days)",
+                          hintText: "e.g. 45",
                           hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
+                          suffixText: "Days",
+                          suffixStyle: GoogleFonts.nunito(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.blackGrey,
+                          ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           filled: true,
                           fillColor: const Color(0xFFFAFAFA),
@@ -220,7 +226,7 @@ void showCreateHabitDialog(BuildContext context) {
                     ],
                     const SizedBox(height: 16),
 
-                    // Habit Type Selection Chips/List
+                    // Habit Type Selection Chips
                     Text(
                       "Habit Type",
                       style: GoogleFonts.nunito(
@@ -245,7 +251,6 @@ void showCreateHabitDialog(BuildContext context) {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: isSelected ? AppColors.yellow : Colors.white,
-                              // gradient: isSelected ? AppColors.orangeGradient : null,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: isSelected ? AppColors.orange : const Color(0xFFDEDEDE),
@@ -264,7 +269,7 @@ void showCreateHabitDialog(BuildContext context) {
                       }).toList(),
                     ),
 
-                    // Conditionally show Specific Days multi-select grid
+                    // Conditional Specific Days Multi-Select
                     if (selectedHabitType == 'Specific Days') ...[
                       const SizedBox(height: 12),
                       Container(
@@ -278,7 +283,7 @@ void showCreateHabitDialog(BuildContext context) {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Select Active Days",
+                              "Select Days",
                               style: GoogleFonts.nunito(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -307,7 +312,6 @@ void showCreateHabitDialog(BuildContext context) {
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: isDaySelected ? AppColors.yellow : Colors.white,
-                                      // gradient: isDaySelected ? AppColors.orangeGradient : null,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isDaySelected ? AppColors.orange : const Color(0xFFDEDEDE),
@@ -331,7 +335,7 @@ void showCreateHabitDialog(BuildContext context) {
                     ],
                     const SizedBox(height: 24),
 
-                    // Create New Gradient Button
+                    // Action Button with Loading Indicator
                     Container(
                       width: double.infinity,
                       height: 50,
@@ -354,25 +358,66 @@ void showCreateHabitDialog(BuildContext context) {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: () {
-                          // Resolve final values
-                          final finalPeriod = selectedPeriod == 'Custom'
-                              ? customPeriodController.text.trim()
-                              : selectedPeriod;
+                        onPressed: habitProvider.isLoading
+                            ? null
+                            : () async {
+                          final goal = goalController.text.trim();
+                          final habitName = habitNameController.text.trim();
+                          final customDays = customPeriodController.text.trim();
 
-                          final finalType = selectedHabitType == 'Specific Days'
-                              ? 'Specific Days: ${selectedSpecificDays.join(", ")}'
-                              : selectedHabitType;
+                          // Basic validation
+                          if (goal.isEmpty || habitName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please fill in both goal and habit fields")),
+                            );
+                            return;
+                          }
 
-                          debugPrint("Goal: ${goalController.text}");
-                          debugPrint("Habit: ${habitNameController.text}");
-                          debugPrint("Period: $finalPeriod");
-                          debugPrint("Type: $finalType");
-                          Navigator.pop(context);
+                          if (selectedPeriod == 'Custom' && customDays.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please specify custom period days")),
+                            );
+                            return;
+                          }
 
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => HabitSuccessScreen()));
+                          if (selectedHabitType == 'Specific Days' && selectedSpecificDays.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please select at least one day")),
+                            );
+                            return;
+                          }
+
+                          final success = await habitProvider.createHabit(
+                            goal: goal,
+                            habitName: habitName,
+                            period: selectedPeriod,
+                            customPeriodDays: customDays,
+                            habitType: selectedHabitType,
+                            specificDays: selectedSpecificDays,
+                          );
+
+                          if (success && dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                            Navigator.push(
+                              dialogContext,
+                              MaterialPageRoute(builder: (_) => const HabitSuccessScreen()),
+                            );
+                          } else if (dialogContext.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Failed to create habit. Please try again.")),
+                            );
+                          }
                         },
-                        child: Text(
+                        child: habitProvider.isLoading
+                            ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : Text(
                           "Create New",
                           style: GoogleFonts.nunito(
                             color: Colors.white,
