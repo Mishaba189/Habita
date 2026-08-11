@@ -2,47 +2,28 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../models/habit_model.dart';
-
-class GoalItem {
-  final String id;
-  final String title;
-  final int currentProgress;
-  final int totalDays;
-  final String frequency;
-
-  GoalItem({
-    required this.id,
-    required this.title,
-    required this.currentProgress,
-    required this.totalDays,
-    required this.frequency,
-  });
-
-  factory GoalItem.fromFirestore(Map<String, dynamic> json, String docId) {
-    return GoalItem(
-      id: docId,
-      title: json['goal'] ?? json['habitName'] ?? 'Untitled Goal',
-      currentProgress: json['currentProgress'] ?? 0,
-      totalDays: json['totalDays'] ?? 7,
-      frequency: json['period'] ?? 'Everyday',
-    );
-  }
-}
 
 class HabitProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  List<GoalItem> _goals = [];
+  List<HabitModel> _habits = [];
   bool _isLoading = false;
 
-  List<GoalItem> get goals => _goals;
+  List<HabitModel> get habits => _habits;
+  List<HabitModel> get goals => _habits;
   bool get isLoading => _isLoading;
 
-  /// Fetch goals for the currently authenticated user
-  Future<void> fetchGoals() async {
+  String _formatDateKey(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return "$year-$month-$day";
+  }
+
+  /// Fetch user habits and sort locally in memory by createdAt descending
+  Future<void> fetchHabits() async {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
       debugPrint("Error: No authenticated user found.");
@@ -56,33 +37,34 @@ class HabitProvider with ChangeNotifier {
       final snapshot = await _firestore
           .collection('habits')
           .where('userId', isEqualTo: currentUser.uid)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      _goals = snapshot.docs
-          .map((doc) => GoalItem.fromFirestore(doc.data(), doc.id))
+      final docs = snapshot.docs;
+
+      // Sort in memory by createdAt descending to avoid requiring a composite index
+      docs.sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        return bTime.compareTo(aTime);
+      });
+
+      _habits = docs
+          .map((doc) => HabitModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      debugPrint("Error fetching goals: $e");
+      debugPrint("Error fetching habits: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Delete a goal by document ID and refresh local state
-  Future<bool> deleteGoal(String goalId) async {
-    try {
-      await _firestore.collection('habits').doc(goalId).delete();
-      _goals.removeWhere((item) => item.id == goalId);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      debugPrint("Error deleting goal: $e");
-      return false;
-    }
+  /// Alias method to maintain backwards compatibility with screens calling fetchGoals
+  Future<void> fetchGoals() async {
+    await fetchHabits();
   }
 
+  /// Create a new habit using HabitModel
   Future<bool> createHabit({
     required String goal,
     required String habitName,
@@ -113,15 +95,95 @@ class HabitProvider with ChangeNotifier {
       );
 
       await _firestore.collection('habits').add(habit.toMap());
-
-      // Refresh the goals list automatically after creation
-      await fetchGoals();
+      await fetchHabits();
       return true;
     } catch (e) {
       _isLoading = false;
       notifyListeners();
       debugPrint("Error creating habit: $e");
       return false;
+    }
+  }
+
+  /// Toggle habit completion status and sync with Firestore
+  Future<void> toggleHabitCompletion(String habitId, bool newStatus) async {
+    try {
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        final existing = _habits[index];
+        _habits[index] = HabitModel(
+          id: existing.id,
+          userId: existing.userId,
+          goal: existing.goal,
+          habitName: existing.habitName,
+          period: existing.period,
+          customPeriodDays: existing.customPeriodDays,
+          habitType: existing.habitType,
+          specificDays: existing.specificDays,
+          createdAt: existing.createdAt,
+          isCompleted: newStatus,
+        );
+        notifyListeners();
+      }
+
+      await _firestore.collection('habits').doc(habitId).update({
+        'isCompleted': newStatus,
+      });
+    } catch (e) {
+      debugPrint("Error updating habit status: $e");
+    }
+  }
+
+  /// Delete a habit/goal by ID
+  Future<bool> deleteHabit(String habitId) async {
+    try {
+      await _firestore.collection('habits').doc(habitId).delete();
+      _habits.removeWhere((item) => item.id == habitId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint("Error deleting habit: $e");
+      return false;
+    }
+  }
+
+  /// Alias method for deleteGoal
+  Future<bool> deleteGoal(String goalId) async {
+    return await deleteHabit(goalId);
+  }
+
+  Future<void> toggleHabitCompletionForDate(String habitId, String dateKey, bool newStatus) async {
+    try {
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        final existing = _habits[index];
+        List<String> updatedDates = List<String>.from(existing.completedDates ?? []);
+
+        if (newStatus) {
+          if (!updatedDates.contains(dateKey)) updatedDates.add(dateKey);
+        } else {
+          updatedDates.remove(dateKey);
+        }
+
+        final bool isToday = dateKey == _formatDateKey(DateTime.now());
+
+        _habits[index] = existing.copyWith(
+          completedDates: updatedDates,
+          isCompleted: isToday ? newStatus : existing.isCompleted,
+        );
+
+        // Forces the UI/Consumer to re-evaluate filtering immediately
+        notifyListeners();
+
+        await _firestore.collection('habits').doc(habitId).update({
+          'completedDates': newStatus
+              ? FieldValue.arrayUnion([dateKey])
+              : FieldValue.arrayRemove([dateKey]),
+          if (isToday) 'isCompleted': newStatus,
+        });
+      }
+    } catch (e) {
+      debugPrint("Error updating habit completion date: $e");
     }
   }
 }

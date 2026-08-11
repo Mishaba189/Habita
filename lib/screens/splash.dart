@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
+import '../providers/auth_provider.dart';
+import '../providers/habit_provider.dart';
 import 'auth_screen.dart';
 import 'bottom_menu.dart';
 
@@ -24,8 +27,11 @@ class _SplashState extends State<Splash> {
     final prefs = await SharedPreferences.getInstance();
     final bool isLoggedIn = prefs.getBool('is_logged_in') ?? false;
 
+
     if (mounted) {
       if (isLoggedIn) {
+        await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
+        await Provider.of<AuthProvider>(context, listen: false).fetchUserData();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => BottomMenu()),

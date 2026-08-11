@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import 'package:provider/provider.dart';
-
+import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import '../widgets/delete_confirmation_dialog.dart';
 
-class YourGoalsScreen extends StatefulWidget {
+
+class YourGoalsScreen extends StatelessWidget {
   final Function(String goalId)? onEdit;
   final Function(String goalId)? onDelete;
 
@@ -15,18 +17,21 @@ class YourGoalsScreen extends StatefulWidget {
     this.onDelete,
   });
 
-  @override
-  State<YourGoalsScreen> createState() => _YourGoalsScreenState();
-}
+  /// Helper to get the total target days from period string
+  int _getTotalDays(String period, String? customPeriodDays) {
+    if (period.contains('7 Days')) return 7;
+    if (period.contains('14 Days')) return 14;
+    if (period.contains('30 Days') || period.contains('1 Month')) return 30;
+    if (period.contains('90 Days') || period.contains('3 Months')) return 90;
+    if (period == 'Custom' && customPeriodDays != null) {
+      return int.tryParse(customPeriodDays) ?? 30;
+    }
+    return 30;
+  }
 
-class _YourGoalsScreenState extends State<YourGoalsScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Trigger provider fetch call safely after initial render pass
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<HabitProvider>(context, listen: false).fetchGoals();
-    });
+  /// Helper to calculate current progress directly from completed dates count
+  int _calculateCompletedDaysProgress(List<String> completedDates, int totalDays) {
+    return completedDates.length.clamp(0, totalDays);
   }
 
   @override
@@ -63,7 +68,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Goals List from Provider
+              // Goals List Consumer
               Expanded(
                 child: Consumer<HabitProvider>(
                   builder: (context, habitProvider, child) {
@@ -90,9 +95,18 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
                       itemCount: habitProvider.goals.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
-                        final goal = habitProvider.goals[index];
-                        final double progress = goal.totalDays > 0
-                            ? (goal.currentProgress / goal.totalDays).clamp(0.0, 1.0)
+                        final HabitModel goal = habitProvider.goals[index];
+
+                        final int totalDays = _getTotalDays(goal.period, goal.customPeriodDays);
+
+                        // Updated to use actual toggled completed dates count
+                        final int currentProgress = _calculateCompletedDaysProgress(
+                          goal.completedDates,
+                          totalDays,
+                        );
+
+                        final double progressRatio = totalDays > 0
+                            ? (currentProgress / totalDays).clamp(0.0, 1.0)
                             : 0.0;
 
                         return Container(
@@ -111,7 +125,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      goal.title,
+                                      goal.goal.isNotEmpty ? goal.goal : goal.habitName,
                                       style: GoogleFonts.nunito(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700,
@@ -133,11 +147,18 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     onSelected: (String value) {
+                                      if (goal.id == null) return;
+
                                       if (value == 'edit') {
-                                        widget.onEdit?.call(goal.id);
+                                        onEdit?.call(goal.id!);
                                       } else if (value == 'delete') {
-                                        habitProvider.deleteGoal(goal.id);
-                                        widget.onDelete?.call(goal.id);
+                                        showDeleteConfirmationDialog(
+                                          context: context,
+                                          onDeleteConfirm: () {
+                                            habitProvider.deleteGoal(goal.id!);
+                                            onDelete?.call(goal.id!);
+                                          },
+                                        );
                                       }
                                     },
                                     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -164,7 +185,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
                                         ),
                                       ),
                                     ],
-                                  ),
+                                  )
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -180,7 +201,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
                                       color: const Color(0xFFEBEBEB),
                                     ),
                                     FractionallySizedBox(
-                                      widthFactor: progress,
+                                      widthFactor: progressRatio,
                                       child: Container(
                                         height: 8,
                                         decoration: BoxDecoration(
@@ -196,7 +217,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
 
                               // Target Days Met Counter
                               Text(
-                                "${goal.currentProgress} from ${goal.totalDays} days target",
+                                "$currentProgress from $totalDays days target",
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -207,7 +228,7 @@ class _YourGoalsScreenState extends State<YourGoalsScreen> {
 
                               // Goal Frequency Tag
                               Text(
-                                goal.frequency,
+                                goal.habitType.isNotEmpty ? goal.habitType : goal.period,
                                 style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,

@@ -5,7 +5,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
-
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -29,6 +28,27 @@ class AuthProvider with ChangeNotifier {
   final TextEditingController confirmPasswordController = TextEditingController();
 
   final ValueNotifier<bool> rememberMeNotifier = ValueNotifier<bool>(false);
+
+  String _userName = '';
+  String get userName => _userName;
+
+  Future<void> fetchUserData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data() != null) {
+          _userName = doc.data()?['name'] ?? user.displayName ?? 'User';
+        } else {
+          _userName = user.displayName ?? 'User';
+        }
+        notifyListeners();
+      } catch (e) {
+        _userName = user.displayName ?? 'User';
+        notifyListeners();
+      }
+    }
+  }
 
   Future<void> loadSavedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -112,6 +132,8 @@ class AuthProvider with ChangeNotifier {
       if (userCredential.user != null) {
         final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
         String existingName = doc.exists ? (doc.data()?['name'] ?? 'User') : 'User';
+
+        _userName = existingName;
 
         await _saveUserToFirestore(
           uid: userCredential.user!.uid,

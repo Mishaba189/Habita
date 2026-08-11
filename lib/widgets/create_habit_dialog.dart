@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:habita/screens/success_page.dart';
 import '../constants/app_colors.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/habit_provider.dart';
+
 
 void showCreateHabitDialog(BuildContext context) {
   final TextEditingController goalController = TextEditingController();
@@ -34,6 +34,9 @@ void showCreateHabitDialog(BuildContext context) {
   String selectedPeriod = '1 Month (30 Days)';
   String selectedHabitType = 'Everyday';
   final Set<String> selectedSpecificDays = {'Mon', 'Wed', 'Fri'};
+
+  // Local state variable for handling inline validation/error messages
+  String? errorMessage;
 
   showDialog(
     context: context,
@@ -96,6 +99,9 @@ void showCreateHabitDialog(BuildContext context) {
                     TextField(
                       controller: goalController,
                       style: GoogleFonts.nunito(fontSize: 14),
+                      onChanged: (_) {
+                        if (errorMessage != null) setState(() => errorMessage = null);
+                      },
                       decoration: InputDecoration(
                         hintText: "e.g., Finish 5 Philosophy Books",
                         hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
@@ -127,6 +133,9 @@ void showCreateHabitDialog(BuildContext context) {
                     TextField(
                       controller: habitNameController,
                       style: GoogleFonts.nunito(fontSize: 14),
+                      onChanged: (_) {
+                        if (errorMessage != null) setState(() => errorMessage = null);
+                      },
                       decoration: InputDecoration(
                         hintText: "e.g., Read 15 pages",
                         hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
@@ -168,6 +177,7 @@ void showCreateHabitDialog(BuildContext context) {
                             onTap: () {
                               setState(() {
                                 selectedPeriod = period;
+                                if (errorMessage != null) errorMessage = null;
                               });
                             },
                             child: Container(
@@ -201,6 +211,9 @@ void showCreateHabitDialog(BuildContext context) {
                         controller: customPeriodController,
                         style: GoogleFonts.nunito(fontSize: 14),
                         keyboardType: TextInputType.number,
+                        onChanged: (_) {
+                          if (errorMessage != null) setState(() => errorMessage = null);
+                        },
                         decoration: InputDecoration(
                           hintText: "e.g. 45",
                           hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
@@ -245,6 +258,7 @@ void showCreateHabitDialog(BuildContext context) {
                           onTap: () {
                             setState(() {
                               selectedHabitType = type;
+                              if (errorMessage != null) errorMessage = null;
                             });
                           },
                           child: Container(
@@ -304,6 +318,7 @@ void showCreateHabitDialog(BuildContext context) {
                                       } else {
                                         selectedSpecificDays.add(day);
                                       }
+                                      if (errorMessage != null) errorMessage = null;
                                     });
                                   },
                                   child: Container(
@@ -333,7 +348,43 @@ void showCreateHabitDialog(BuildContext context) {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+
+                    // --- INLINE ERROR MESSAGE BANNER ---
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF2F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFFC1C1)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              size: 18,
+                              color: Color(0xFFE53935),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFFD32F2F),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
 
                     // Action Button with Loading Indicator
                     Container(
@@ -365,27 +416,32 @@ void showCreateHabitDialog(BuildContext context) {
                           final habitName = habitNameController.text.trim();
                           final customDays = customPeriodController.text.trim();
 
-                          // Basic validation
+                          // Inline Validation Checks
                           if (goal.isEmpty || habitName.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Please fill in both goal and habit fields")),
-                            );
+                            setState(() {
+                              errorMessage = "Please fill in both goal and habit fields.";
+                            });
                             return;
                           }
 
                           if (selectedPeriod == 'Custom' && customDays.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Please specify custom period days")),
-                            );
+                            setState(() {
+                              errorMessage = "Please specify custom period days.";
+                            });
                             return;
                           }
 
                           if (selectedHabitType == 'Specific Days' && selectedSpecificDays.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Please select at least one day")),
-                            );
+                            setState(() {
+                              errorMessage = "Please select at least one day.";
+                            });
                             return;
                           }
+
+                          // Clear errors before attempting submission
+                          setState(() {
+                            errorMessage = null;
+                          });
 
                           final success = await habitProvider.createHabit(
                             goal: goal,
@@ -403,9 +459,9 @@ void showCreateHabitDialog(BuildContext context) {
                               MaterialPageRoute(builder: (_) => const HabitSuccessScreen()),
                             );
                           } else if (dialogContext.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Failed to create habit. Please try again.")),
-                            );
+                            setState(() {
+                              errorMessage = "Failed to create habit. Please try again.";
+                            });
                           }
                         },
                         child: habitProvider.isLoading
