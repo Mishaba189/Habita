@@ -34,22 +34,24 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> fetchUserData() async {
     final user = _auth.currentUser;
-    if (user != null) {
-      try {
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data() != null) {
-          _userName = doc.data()?['name'] ?? user.displayName ?? 'User';
-        } else {
-          _userName = user.displayName ?? 'User';
-        }
-        notifyListeners();
-      } catch (e) {
-        _userName = user.displayName ?? 'User';
-        notifyListeners();
-      }
+    if (user == null) {
+      _userName = '';
+      notifyListeners();
+      return;
     }
-  }
 
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists && doc.data() != null) {
+        _userName = doc.data()?['name'] ?? user.displayName ?? 'User';
+      } else {
+        _userName = user.displayName ?? 'User';
+      }
+    } catch (e) {
+      _userName = user.displayName ?? 'User';
+    }
+    notifyListeners();
+  }
   Future<void> loadSavedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     final isRemembered = prefs.getBool(keyIsRememberMe) ?? false;

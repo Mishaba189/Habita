@@ -3,13 +3,26 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:habita/screens/success_page.dart';
 import '../constants/app_colors.dart';
 import 'package:provider/provider.dart';
+import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import 'delete_confirmation_dialog.dart';
 
 
-void showCreateHabitDialog(BuildContext context) {
-  final TextEditingController goalController = TextEditingController();
-  final TextEditingController habitNameController = TextEditingController();
-  final TextEditingController customPeriodController = TextEditingController();
+void showCreateHabitDialog(
+    BuildContext context, {
+      bool isEdit = false,
+      HabitModel? goal, // Pass existing goal object when editing
+    }) {
+  // Pre-fill controllers if editing
+  final TextEditingController goalController = TextEditingController(
+    text: isEdit && goal != null ? goal.goal : '',
+  );
+  final TextEditingController habitNameController = TextEditingController(
+    text: isEdit && goal != null ? goal.habitName : '',
+  );
+  final TextEditingController customPeriodController = TextEditingController(
+    text: isEdit && goal != null ? goal.customPeriodDays : '',
+  );
 
   final List<String> periodOptions = [
     '1 Week (7 Days)',
@@ -31,11 +44,17 @@ void showCreateHabitDialog(BuildContext context) {
 
   final List<String> daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  String selectedPeriod = '1 Month (30 Days)';
-  String selectedHabitType = 'Everyday';
-  final Set<String> selectedSpecificDays = {'Mon', 'Wed', 'Fri'};
+  // Initialize values from goal if in edit mode
+  String selectedPeriod = (isEdit && goal != null && goal.period.isNotEmpty)
+      ? goal.period
+      : '1 Month (30 Days)';
+  String selectedHabitType = (isEdit && goal != null && goal.habitType.isNotEmpty)
+      ? goal.habitType
+      : 'Everyday';
+  final Set<String> selectedSpecificDays = (isEdit && goal != null)
+      ? Set<String>.from(goal.specificDays)
+      : {'Mon', 'Wed', 'Fri'};
 
-  // Local state variable for handling inline validation/error messages
   String? errorMessage;
 
   showDialog(
@@ -64,7 +83,7 @@ void showCreateHabitDialog(BuildContext context) {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Create New Habit Goal",
+                          isEdit ? "Edit Habit Goal" : "Create New Habit Goal",
                           style: GoogleFonts.nunito(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -72,14 +91,20 @@ void showCreateHabitDialog(BuildContext context) {
                           ),
                         ),
                         InkWell(
-                          onTap: habitProvider.isLoading ? null : () => Navigator.pop(dialogContext),
+                          onTap: habitProvider.isLoading
+                              ? null
+                              : () => Navigator.pop(dialogContext),
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF5F5F5),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.close, size: 18, color: AppColors.blackGrey),
+                            child: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: AppColors.blackGrey,
+                            ),
                           ),
                         ),
                       ],
@@ -104,8 +129,14 @@ void showCreateHabitDialog(BuildContext context) {
                       },
                       decoration: InputDecoration(
                         hintText: "e.g., Finish 5 Philosophy Books",
-                        hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        hintStyle: GoogleFonts.nunito(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFFAFAFA),
                         enabledBorder: OutlineInputBorder(
@@ -114,7 +145,10 @@ void showCreateHabitDialog(BuildContext context) {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppColors.orange, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: AppColors.orange,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -138,8 +172,14 @@ void showCreateHabitDialog(BuildContext context) {
                       },
                       decoration: InputDecoration(
                         hintText: "e.g., Read 15 pages",
-                        hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        hintStyle: GoogleFonts.nunito(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFFAFAFA),
                         enabledBorder: OutlineInputBorder(
@@ -148,7 +188,10 @@ void showCreateHabitDialog(BuildContext context) {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppColors.orange, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: AppColors.orange,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -181,21 +224,30 @@ void showCreateHabitDialog(BuildContext context) {
                               });
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: isSelected ? AppColors.yellow : Colors.white,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: isSelected ? AppColors.orange : const Color(0xFFDEDEDE),
+                                  color: isSelected
+                                      ? AppColors.orange
+                                      : const Color(0xFFDEDEDE),
                                 ),
                               ),
                               child: Text(
                                 period,
                                 style: GoogleFonts.nunito(
                                   fontSize: 13,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected ? AppColors.orange : AppColors.blackGrey,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? AppColors.orange
+                                      : AppColors.blackGrey,
                                 ),
                               ),
                             ),
@@ -216,14 +268,20 @@ void showCreateHabitDialog(BuildContext context) {
                         },
                         decoration: InputDecoration(
                           hintText: "e.g. 45",
-                          hintStyle: GoogleFonts.nunito(color: Colors.grey.shade400, fontSize: 13),
+                          hintStyle: GoogleFonts.nunito(
+                            color: Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
                           suffixText: "Days",
                           suffixStyle: GoogleFonts.nunito(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppColors.blackGrey,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           filled: true,
                           fillColor: const Color(0xFFFAFAFA),
                           enabledBorder: OutlineInputBorder(
@@ -232,7 +290,10 @@ void showCreateHabitDialog(BuildContext context) {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.orange, width: 1.5),
+                            borderSide: const BorderSide(
+                              color: AppColors.orange,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -262,20 +323,29 @@ void showCreateHabitDialog(BuildContext context) {
                             });
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
                               color: isSelected ? AppColors.yellow : Colors.white,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isSelected ? AppColors.orange : const Color(0xFFDEDEDE),
+                                color: isSelected
+                                    ? AppColors.orange
+                                    : const Color(0xFFDEDEDE),
                               ),
                             ),
                             child: Text(
                               type,
                               style: GoogleFonts.nunito(
                                 fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? AppColors.orange : AppColors.blackGrey,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? AppColors.orange
+                                    : AppColors.blackGrey,
                               ),
                             ),
                           ),
@@ -309,7 +379,8 @@ void showCreateHabitDialog(BuildContext context) {
                               spacing: 6.0,
                               runSpacing: 6.0,
                               children: daysOfWeek.map((day) {
-                                final isDaySelected = selectedSpecificDays.contains(day);
+                                final isDaySelected =
+                                selectedSpecificDays.contains(day);
                                 return GestureDetector(
                                   onTap: () {
                                     setState(() {
@@ -318,7 +389,9 @@ void showCreateHabitDialog(BuildContext context) {
                                       } else {
                                         selectedSpecificDays.add(day);
                                       }
-                                      if (errorMessage != null) errorMessage = null;
+                                      if (errorMessage != null) {
+                                        errorMessage = null;
+                                      }
                                     });
                                   },
                                   child: Container(
@@ -326,10 +399,14 @@ void showCreateHabitDialog(BuildContext context) {
                                     height: 38,
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
-                                      color: isDaySelected ? AppColors.yellow : Colors.white,
+                                      color: isDaySelected
+                                          ? AppColors.yellow
+                                          : Colors.white,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: isDaySelected ? AppColors.orange : const Color(0xFFDEDEDE),
+                                        color: isDaySelected
+                                            ? AppColors.orange
+                                            : const Color(0xFFDEDEDE),
                                       ),
                                     ),
                                     child: Text(
@@ -337,7 +414,9 @@ void showCreateHabitDialog(BuildContext context) {
                                       style: GoogleFonts.nunito(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: isDaySelected ? AppColors.orange : AppColors.blackGrey,
+                                        color: isDaySelected
+                                            ? AppColors.orange
+                                            : AppColors.blackGrey,
                                       ),
                                     ),
                                   ),
@@ -349,13 +428,16 @@ void showCreateHabitDialog(BuildContext context) {
                       ),
                     ],
 
-                    // --- INLINE ERROR MESSAGE BANNER ---
+                    // Inline Error Banner
                     if (errorMessage != null) ...[
                       const SizedBox(height: 16),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF2F2),
                           borderRadius: BorderRadius.circular(10),
@@ -386,7 +468,7 @@ void showCreateHabitDialog(BuildContext context) {
 
                     const SizedBox(height: 20),
 
-                    // Action Button with Loading Indicator
+                    // Primary Action Button (Create / Update)
                     Container(
                       width: double.infinity,
                       height: 50,
@@ -412,56 +494,95 @@ void showCreateHabitDialog(BuildContext context) {
                         onPressed: habitProvider.isLoading
                             ? null
                             : () async {
-                          final goal = goalController.text.trim();
+                          final textGoal = goalController.text.trim();
                           final habitName = habitNameController.text.trim();
-                          final customDays = customPeriodController.text.trim();
+                          final customDays =
+                          customPeriodController.text.trim();
 
-                          // Inline Validation Checks
-                          if (goal.isEmpty || habitName.isEmpty) {
+                          if (textGoal.isEmpty || habitName.isEmpty) {
                             setState(() {
-                              errorMessage = "Please fill in both goal and habit fields.";
+                              errorMessage =
+                              "Please fill in both goal and habit fields.";
                             });
                             return;
                           }
 
-                          if (selectedPeriod == 'Custom' && customDays.isEmpty) {
+                          if (selectedPeriod == 'Custom' &&
+                              customDays.isEmpty) {
                             setState(() {
-                              errorMessage = "Please specify custom period days.";
+                              errorMessage =
+                              "Please specify custom period days.";
                             });
                             return;
                           }
 
-                          if (selectedHabitType == 'Specific Days' && selectedSpecificDays.isEmpty) {
+                          if (selectedHabitType == 'Specific Days' &&
+                              selectedSpecificDays.isEmpty) {
                             setState(() {
                               errorMessage = "Please select at least one day.";
                             });
-                            return;
+                            Icon: return;
                           }
 
-                          // Clear errors before attempting submission
                           setState(() {
                             errorMessage = null;
                           });
 
-                          final success = await habitProvider.createHabit(
-                            goal: goal,
-                            habitName: habitName,
-                            period: selectedPeriod,
-                            customPeriodDays: customDays,
-                            habitType: selectedHabitType,
-                            specificDays: selectedSpecificDays,
-                          );
-
-                          if (success && dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                            Navigator.push(
-                              dialogContext,
-                              MaterialPageRoute(builder: (_) => const HabitSuccessScreen()),
+                          if (isEdit) {
+                            if (goal?.id == null) return;
+                            // Call update function in Provider
+                            final success = await habitProvider.updateHabit(
+                              habitId: goal!.id!,
+                              goal: textGoal,
+                              habitName: habitName,
+                              period: selectedPeriod,
+                              customPeriodDays: customDays,
+                              habitType: selectedHabitType,
+                              specificDays: selectedSpecificDays,
                             );
-                          } else if (dialogContext.mounted) {
-                            setState(() {
-                              errorMessage = "Failed to create habit. Please try again.";
-                            });
+
+                            if (success && dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                              Navigator.push(
+                                dialogContext,
+                                MaterialPageRoute(
+                                  builder: (_) => const HabitSuccessScreen(
+                                    title: "Updated!",
+                                    message: "Habit goal updated successfully.\nKeep up the progress!",
+                                  ),
+                                ),
+                              );
+                            } else if (dialogContext.mounted) {
+                              setState(() {
+                                errorMessage =
+                                "Failed to update habit. Please try again.";
+                              });
+                            }
+                          } else {
+                            // Call create function in Provider
+                            final success = await habitProvider.createHabit(
+                              goal: textGoal,
+                              habitName: habitName,
+                              period: selectedPeriod,
+                              customPeriodDays: customDays,
+                              habitType: selectedHabitType,
+                              specificDays: selectedSpecificDays,
+                            );
+
+                            if (success && dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                              Navigator.push(
+                                dialogContext,
+                                MaterialPageRoute(
+                                  builder: (_) => const HabitSuccessScreen(),
+                                ),
+                              );
+                            } else if (dialogContext.mounted) {
+                              setState(() {
+                                errorMessage =
+                                "Failed to create habit. Please try again.";
+                              });
+                            }
                           }
                         },
                         child: habitProvider.isLoading
@@ -474,7 +595,7 @@ void showCreateHabitDialog(BuildContext context) {
                           ),
                         )
                             : Text(
-                          "Create New",
+                          isEdit ? "Save Changes" : "Create New",
                           style: GoogleFonts.nunito(
                             color: Colors.white,
                             fontSize: 16,
@@ -483,6 +604,49 @@ void showCreateHabitDialog(BuildContext context) {
                         ),
                       ),
                     ),
+
+                    // Extra Delete Button (Appears only when isEdit is true)
+                    if (isEdit) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFFFCDD2)),
+                            backgroundColor: const Color(0xFFFFF5F5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                          label: Text(
+                            "Delete Goal",
+                            style: GoogleFonts.nunito(
+                              color: Colors.redAccent,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: habitProvider.isLoading
+                              ? null
+                              : () {
+                            if (goal?.id == null) return;
+                            Navigator.pop(dialogContext);
+                            showDeleteConfirmationDialog(
+                              context: context,
+                              onDeleteConfirm: () {
+                                habitProvider.deleteGoal(goal!.id!);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -83,7 +83,11 @@ class HabitProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Generate unique ID using timestamp
+      final String timestampId = DateTime.now().millisecondsSinceEpoch.toString();
+
       final habit = HabitModel(
+        id: timestampId, // Pass timestamp ID to model if model accepts 'id'
         userId: currentUser.uid,
         goal: goal,
         habitName: habitName,
@@ -94,7 +98,9 @@ class HabitProvider with ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      await _firestore.collection('habits').add(habit.toMap());
+      // Save with the timestamp as the document ID
+      await _firestore.collection('habits').doc(timestampId).set(habit.toMap());
+
       await fetchHabits();
       return true;
     } catch (e) {
@@ -104,7 +110,6 @@ class HabitProvider with ChangeNotifier {
       return false;
     }
   }
-
   /// Toggle habit completion status and sync with Firestore
   Future<void> toggleHabitCompletion(String habitId, bool newStatus) async {
     try {
@@ -184,6 +189,52 @@ class HabitProvider with ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Error updating habit completion date: $e");
+    }
+  }
+
+  Future<bool> updateHabit({
+    required String habitId,
+    required String goal,
+    required String habitName,
+    required String period,
+    required String customPeriodDays,
+    required String habitType,
+    required Set<String> specificDays,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _firestore.collection('habits').doc(habitId).update({
+        'goal': goal,
+        'habitName': habitName,
+        'period': period,
+        'customPeriodDays': customPeriodDays,
+        'habitType': habitType,
+        'specificDays': specificDays.toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update locally in memory to reflect changes immediately in UI
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        _habits[index] = _habits[index].copyWith(
+          goal: goal,
+          habitName: habitName,
+          period: period,
+          customPeriodDays: customPeriodDays,
+          habitType: habitType,
+          specificDays: specificDays.toList(),
+        );
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 }

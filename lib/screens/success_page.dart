@@ -4,7 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 
 class HabitSuccessScreen extends StatelessWidget {
-  const HabitSuccessScreen({super.key});
+  final String title;
+  final String message;
+
+  const HabitSuccessScreen({
+    super.key,
+    this.title = "Done!",
+    this.message = "New Habit Goal has added\nLet's do the best to achieve your goal!",
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +33,9 @@ class HabitSuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 40),
 
-                // Done Title
+                // Dynamic Title
                 Text(
-                  "Done!",
+                  title,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 28,
@@ -38,9 +45,9 @@ class HabitSuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // Subtitle Message
+                // Dynamic Subtitle Message
                 Text(
-                  "New Habit Goal has added\nLet's do the best to achieve your goal!",
+                  message,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.nunito(
                     fontSize: 14,

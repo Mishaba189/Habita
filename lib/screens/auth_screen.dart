@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:habita/screens/bottom_menu.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/habit_provider.dart';
 
 enum AuthView {  logIn ,signUp, forgotPassword }
 class AuthScreen extends StatelessWidget {
@@ -27,6 +28,8 @@ class AuthScreen extends StatelessWidget {
           debugPrint('Login Successful');
           authProvider.clearAll();
           if (context.mounted) {
+            await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
+            await Provider.of<AuthProvider>(context, listen: false).fetchUserData();
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => BottomMenu()));
           }
         }

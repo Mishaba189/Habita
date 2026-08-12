@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/empty_state.dart';
 
 
 class YourHabitScreen extends StatefulWidget {
@@ -319,14 +321,14 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
 
                       Consumer<HabitProvider>(
                         builder: (context, habitProvider, child) {
-                          if (habitProvider.isLoading) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(24.0),
-                                child: CircularProgressIndicator(color: AppColors.orange),
-                              ),
-                            );
-                          }
+                          // if (habitProvider.isLoading) {
+                          //   return const Center(
+                          //     child: Padding(
+                          //       padding: EdgeInsets.all(24.0),
+                          //       child: CircularProgressIndicator(color: AppColors.orange),
+                          //     ),
+                          //   );
+                          // }
 
                           final filteredHabits = habitProvider.habits.where((habit) {
                             return _shouldShowOnDay(habit, _selectedDate);
@@ -335,15 +337,16 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
                           if (filteredHabits.isEmpty) {
                             return Center(
                               child: Padding(
-                                padding: const EdgeInsets.all(24.0),
-                                child: Text(
-                                  "No habits scheduled for this date.",
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                child: buildEmptyState(
+                                  icon: Icons.event_note_rounded,
+                                  title: _isSameDay(_selectedDate, DateTime.now())
+                                      ? "No Habits Today"
+                                      : "No Habits for ${_selectedDate.day} ${_getMonthAbbreviation(_selectedDate.month)}",
+                                  subtitle: "No habits scheduled for this date !",
+                                  buttonText: "Add New Habit",
+                                  onButtonPressed: () =>  showCreateHabitDialog(context),
+                                )
                               ),
                             );
                           }
@@ -355,19 +358,15 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
                             separatorBuilder: (context, index) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final habit = filteredHabits[index];
-
-                              // Check completion against the selected date key
                               final bool isCompletedForSelectedDate =
                                   habit.completedDates?.contains(selectedDateKey) ??
                                       (_isSameDay(_selectedDate, DateTime.now()) ? habit.isCompleted : false);
-
                               return _buildHabitCard(
                                 context: context,
                                 habit: habit,
                                 isCompleted: isCompletedForSelectedDate,
                                 onToggle: () {
                                   if (habit.id != null) {
-                                    // Pass selectedDateKey so the provider toggles completion for that specific date
                                     habitProvider.toggleHabitCompletionForDate(
                                       habit.id!,
                                       selectedDateKey,
@@ -377,7 +376,11 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
                                 },
                                 onEdit: () {
                                   if (habit.id != null) {
-                                    widget.onEdit?.call(habit.id!);
+                                    showCreateHabitDialog(
+                                      context,
+                                      isEdit: true,
+                                      goal: habit,
+                                    );
                                   }
                                 },
                                 onDelete: () {

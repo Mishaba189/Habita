@@ -12,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
 import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/empty_state.dart';
 
 class HabitItem {
   final String title;
@@ -34,10 +35,26 @@ class GoalItem {
   });
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  /// Helper to format date keys for Firestore matching
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final habitProvider = Provider.of<HabitProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      habitProvider.fetchHabits();
+      habitProvider.fetchGoals();
+      authProvider.fetchUserData();
+    });
+  }
   String _formatDateKey(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -45,7 +62,6 @@ class HomeScreen extends StatelessWidget {
     return "$year-$month-$day";
   }
 
-  /// Date comparison helpers for frequency checks
   bool _isSameDay(DateTime d1, DateTime d2) =>
       d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
 
@@ -210,17 +226,25 @@ class HomeScreen extends StatelessWidget {
                         color: AppColors.blackGrey,
                       ),
                     ),
-                    ShaderMask(
-                      shaderCallback: (Rect bounds) => AppColors.orangeGradient.createShader(bounds),
-                      blendMode: BlendMode.srcIn,
-                      child: Text(
-                        "Susy!",
-                        style: GoogleFonts.nunito(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        final displayName = authProvider.userName.isNotEmpty
+                            ? authProvider.userName
+                            : 'User';
+                        return ShaderMask(
+                          shaderCallback: (Rect bounds) =>
+                              AppColors.orangeGradient.createShader(bounds),
+                          blendMode: BlendMode.srcIn,
+                          child: Text(
+                            "$displayName!",
+                            style: GoogleFonts.nunito(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -369,14 +393,14 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Consumer<HabitProvider>(
                         builder: (context, habitProvider, child) {
-                          if (habitProvider.isLoading) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: CircularProgressIndicator(color: AppColors.orange),
-                              ),
-                            );
-                          }
+                          // if (habitProvider.isLoading) {
+                          //   return const Center(
+                          //     child: Padding(
+                          //       padding: EdgeInsets.all(16.0),
+                          //       child: CircularProgressIndicator(color: AppColors.orange),
+                          //     ),
+                          //   );
+                          // }
 
                           final todayHabits = habitProvider.habits
                               .where((habit) => _shouldShowToday(habit, today))
@@ -385,16 +409,11 @@ class HomeScreen extends StatelessWidget {
                           if (todayHabits.isEmpty) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16.0),
-                              child: Center(
-                                child: Text(
-                                  "No habits scheduled for today.",
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
+                              child: buildEmptyState(
+                                icon: Icons.check_box_outlined,
+                                title: "No Habits Today",
+                                subtitle: "Take a break or schedule a new habit.",
+                              )
                             );
                           }
 
@@ -420,7 +439,11 @@ class HomeScreen extends StatelessWidget {
                                   }
                                 },
                                 onEdit: () {
-                                  // Edit Habit action
+                                  showCreateHabitDialog(
+                                    context,
+                                    isEdit: true,
+                                    goal: habit,
+                                  );
                                 },
                                 onDelete: () {
                                   if (habit.id != null) {
@@ -494,14 +517,14 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Consumer<HabitProvider>(
                         builder: (context, habitProvider, child) {
-                          if (habitProvider.isLoading) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: CircularProgressIndicator(color: AppColors.orange),
-                              ),
-                            );
-                          }
+                          // if (habitProvider.isLoading) {
+                          //   return const Center(
+                          //     child: Padding(
+                          //       padding: EdgeInsets.all(16.0),
+                          //       child: CircularProgressIndicator(color: AppColors.orange),
+                          //     ),
+                          //   );
+                          // }
 
                           // Take maximum 3 goals to show on the dashboard
                           final displayedGoals = habitProvider.habits.take(3).toList();
@@ -509,16 +532,15 @@ class HomeScreen extends StatelessWidget {
                           if (displayedGoals.isEmpty) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16.0),
-                              child: Center(
-                                child: Text(
-                                  "No active goals found.",
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
+                              child: buildEmptyState(
+                                icon: Icons.track_changes_rounded,
+                                title: "No Active Goals",
+                                subtitle: "Set up a new goal to track your progress.",
+                                buttonText: "Add Goal",
+                                onButtonPressed: () {
+                                  showCreateHabitDialog(context);
+                                },
+                              )
                             );
                           }
 
@@ -537,7 +559,11 @@ class HomeScreen extends StatelessWidget {
                                 progressText: progressMetrics['progressText'] as String,
                                 frequency: habitGoal.habitType,
                                 onEdit: () {
-                                  // Edit Goal action
+                                  showCreateHabitDialog(
+                                    context,
+                                    isEdit: true,
+                                    goal: habitGoal,
+                                  );
                                 },
                                 onDelete: () {
                                   if (habitGoal.id != null) {
@@ -774,14 +800,14 @@ class HomeScreen extends StatelessWidget {
               )
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
           Padding(
             padding: const EdgeInsets.only(right: 24),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final double maxWidth = constraints.maxWidth;
                 return Container(
-                  height: 10,
+                  height: 13,
                   decoration: BoxDecoration(
                     color: const Color(0xFFEDEDED),
                     borderRadius: BorderRadius.circular(4),

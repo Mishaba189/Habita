@@ -68,11 +68,12 @@ void showDeleteConfirmationDialog({
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: const BoxDecoration(
-                                color: Color(0xFF37C871),
+                                gradient: AppColors.greenGradient,
+                                // color: Color(0xFF37C871),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                Icons.check,
+                                Icons.check_rounded,
                                 size: 12,
                                 color: Colors.white,
                               ),

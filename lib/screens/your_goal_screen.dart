@@ -4,7 +4,9 @@ import '../constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/empty_state.dart';
 
 
 class YourGoalsScreen extends StatelessWidget {
@@ -37,10 +39,10 @@ class YourGoalsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -72,20 +74,24 @@ class YourGoalsScreen extends StatelessWidget {
               Expanded(
                 child: Consumer<HabitProvider>(
                   builder: (context, habitProvider, child) {
-                    if (habitProvider.isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: AppColors.orange),
-                      );
-                    }
+                    // if (habitProvider.isLoading) {
+                    //   return const Center(
+                    //     child: CircularProgressIndicator(color: AppColors.orange),
+                    //   );
+                    // }
 
                     if (habitProvider.goals.isEmpty) {
                       return Center(
-                        child: Text(
-                          "No goals created yet.",
-                          style: GoogleFonts.nunito(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: buildEmptyState(
+                            icon: Icons.track_changes_rounded,
+                            title: "No Goals Created Yet",
+                            subtitle: "Start setting up your personal goals to track your daily progress.",
+                            buttonText: "Add Goal",
+                            onButtonPressed: () {
+                              showCreateHabitDialog(context);
+                            },
                           ),
                         ),
                       );
@@ -96,15 +102,11 @@ class YourGoalsScreen extends StatelessWidget {
                       separatorBuilder: (context, index) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
                         final HabitModel goal = habitProvider.goals[index];
-
                         final int totalDays = _getTotalDays(goal.period, goal.customPeriodDays);
-
-                        // Updated to use actual toggled completed dates count
                         final int currentProgress = _calculateCompletedDaysProgress(
                           goal.completedDates,
                           totalDays,
                         );
-
                         final double progressRatio = totalDays > 0
                             ? (currentProgress / totalDays).clamp(0.0, 1.0)
                             : 0.0;
@@ -113,8 +115,8 @@ class YourGoalsScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: AppColors.grey,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFF0F0F0)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFEDEDED)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +129,7 @@ class YourGoalsScreen extends StatelessWidget {
                                     child: Text(
                                       goal.goal.isNotEmpty ? goal.goal : goal.habitName,
                                       style: GoogleFonts.nunito(
-                                        fontSize: 15,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.blackGrey,
                                       ),
@@ -150,7 +152,11 @@ class YourGoalsScreen extends StatelessWidget {
                                       if (goal.id == null) return;
 
                                       if (value == 'edit') {
-                                        onEdit?.call(goal.id!);
+                                        showCreateHabitDialog(
+                                          context,
+                                          isEdit: true,
+                                          goal: goal,
+                                        );
                                       } else if (value == 'delete') {
                                         showDeleteConfirmationDialog(
                                           context: context,
@@ -188,29 +194,32 @@ class YourGoalsScreen extends StatelessWidget {
                                   )
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 5),
 
                               // Custom Gradient Progress Bar
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      height: 8,
-                                      width: double.infinity,
-                                      color: const Color(0xFFEBEBEB),
-                                    ),
-                                    FractionallySizedBox(
-                                      widthFactor: progressRatio,
-                                      child: Container(
-                                        height: 8,
-                                        decoration: BoxDecoration(
-                                          gradient: AppColors.orangeGradient,
-                                          borderRadius: BorderRadius.circular(6),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 24),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        height: 13,
+                                        width: double.infinity,
+                                        color: const Color(0xFFEBEBEB),
+                                      ),
+                                      FractionallySizedBox(
+                                        widthFactor: progressRatio,
+                                        child: Container(
+                                          height: 13,
+                                          decoration: BoxDecoration(
+                                            gradient: AppColors.orangeGradient,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -219,9 +228,9 @@ class YourGoalsScreen extends StatelessWidget {
                               Text(
                                 "$currentProgress from $totalDays days target",
                                 style: GoogleFonts.nunito(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.grey.shade600,
+                                  color:AppColors.blackGrey,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -230,7 +239,7 @@ class YourGoalsScreen extends StatelessWidget {
                               Text(
                                 goal.habitType.isNotEmpty ? goal.habitType : goal.period,
                                 style: GoogleFonts.nunito(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.orange,
                                 ),
