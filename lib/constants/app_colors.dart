@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+
 class AppColors {
   static const Color orange = Color(0xFFFF5C00);
+  static const Color green = Color(0xFF37C871);
   static const Color blackGrey = Color(0xFF2F2F2F);
   static const Color grey = Color(0xFFFBFBFB);
   static const Color yellow = Color(0xFFFDD2AB);
@@ -11,6 +13,7 @@ class AppColors {
     begin: Alignment.bottomLeft,
     end: Alignment.topRight,
   );
+
   static const LinearGradient greenGradient = LinearGradient(
     colors: [Color(0xFF37C871), Color(0xFF5FE394)],
     begin: Alignment.topLeft,

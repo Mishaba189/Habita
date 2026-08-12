@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:habita/screens/activity_screen.dart';
 import 'package:habita/screens/home_screen.dart';
 import '../constants/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -24,7 +25,7 @@ class BottomMenu extends StatelessWidget {
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
     final List<Widget> pages = [
       HomeScreen(),
-      const Center(child: Text("Activity Page")),
+      ActivityScreen(),
       const Center(child: Text("Settings Page")),
     ];
 

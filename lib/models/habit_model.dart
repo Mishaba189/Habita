@@ -11,7 +11,7 @@ class HabitModel {
   final List<String> specificDays;
   final DateTime createdAt;
   final bool isCompleted;
-  final List<String> completedDates; // Added field
+  final List<String> completedDates;
 
   HabitModel({
     this.id,
