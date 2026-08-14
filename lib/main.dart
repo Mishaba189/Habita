@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:habita/providers/auth_provider.dart';
 import 'package:habita/providers/habit_provider.dart';
+import 'package:habita/providers/report_provider.dart';
 import 'package:habita/screens/splash.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
@@ -20,6 +21,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => HabitProvider()),
+        ChangeNotifierProvider(create: (_) => ReportProvider()),
       ],
       child: const MyApp(),
     ),

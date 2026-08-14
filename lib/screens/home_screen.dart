@@ -13,6 +13,7 @@ import '../providers/habit_provider.dart';
 import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/empty_state.dart';
+import 'goal_detail_screen.dart';
 
 class HabitItem {
   final String title;
@@ -177,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final String formattedDate = "${constWeekdays[today.weekday - 1]}, ${today.day} ${constMonths[today.month - 1]} ${today.year}";
 
     return Scaffold(
-      backgroundColor: AppColors.grey,
+      backgroundColor: AppColors.light,
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.orange,
@@ -463,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // YOUR GOALS SECTION (DISPLAY MAX 3 GOALS)
+                // YOUR GOALS SECTION
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
@@ -553,26 +554,36 @@ class _HomeScreenState extends State<HomeScreen> {
                               final habitGoal = displayedGoals[index];
                               final progressMetrics = _calculateGoalProgress(habitGoal, today);
 
-                              return _buildGoalCard(
-                                title: habitGoal.goal.isNotEmpty ? habitGoal.goal : habitGoal.habitName,
-                                progressValue: progressMetrics['progressRatio'] as double,
-                                progressText: progressMetrics['progressText'] as String,
-                                frequency: habitGoal.habitType,
-                                onEdit: () {
-                                  showCreateHabitDialog(
+                              return GestureDetector(
+                                onTap:(){
+                                  Navigator.push(
                                     context,
-                                    isEdit: true,
-                                    goal: habitGoal,
+                                    MaterialPageRoute(
+                                      builder: (context) => GoalDetailsScreen(habit: habitGoal),
+                                    ),
                                   );
-                                },
-                                onDelete: () {
-                                  if (habitGoal.id != null) {
-                                    showDeleteConfirmationDialog(
-                                      context: context,
-                                      onDeleteConfirm: () => habitProvider.deleteGoal(habitGoal.id!),
+                                } ,
+                                child: _buildGoalCard(
+                                  title: habitGoal.goal.isNotEmpty ? habitGoal.goal : habitGoal.habitName,
+                                  progressValue: progressMetrics['progressRatio'] as double,
+                                  progressText: progressMetrics['progressText'] as String,
+                                  frequency: habitGoal.habitType,
+                                  onEdit: () {
+                                    showCreateHabitDialog(
+                                      context,
+                                      isEdit: true,
+                                      goal: habitGoal,
                                     );
-                                  }
-                                },
+                                  },
+                                  onDelete: () {
+                                    if (habitGoal.id != null) {
+                                      showDeleteConfirmationDialog(
+                                        context: context,
+                                        onDeleteConfirm: () => habitProvider.deleteGoal(habitGoal.id!),
+                                      );
+                                    }
+                                  },
+                                ),
                               );
                             },
                           );
@@ -594,7 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
           shape: BoxShape.circle,
           gradient: AppColors.greenGradient,
           border: Border.all(
-            color: AppColors.grey,
+            color: AppColors.light,
             width: 4,
           ),
           boxShadow: [
@@ -627,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: isCompleted ? const Color(0xFFEDFFF4) : AppColors.grey,
+        color: isCompleted ? const Color(0xFFEDFFF4) : AppColors.light,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCompleted ? Colors.transparent : const Color(0xFFEDFFF4),
@@ -739,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.grey,
+        color: AppColors.light,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFEDEDED)),
       ),

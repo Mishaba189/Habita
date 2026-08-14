@@ -60,7 +60,7 @@ class AuthScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: AppColors.grey,
+      backgroundColor: AppColors.light,
       body: SafeArea(
         child: FutureBuilder<void>(
           future: authProvider.loadSavedPreferences(),
@@ -149,7 +149,7 @@ class AuthScreen extends StatelessWidget {
                                       valueListenable: authProvider.rememberMeNotifier,
                                       builder: (context, value, _) => Checkbox(
                                           activeColor: AppColors.blackGrey,
-                                          checkColor: AppColors.grey,
+                                          checkColor: AppColors.light,
                                           value: value,
                                           onChanged: (v) => authProvider.rememberMeNotifier.value = v!
                                       ),

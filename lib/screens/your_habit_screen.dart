@@ -88,22 +88,23 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
     return 365;
   }
 
-  bool _isDateWithinPeriod(DateTime createdAt, String period, String? customPeriodDays, DateTime selectedDate) {
+  bool _isDateWithinPeriod(
+      DateTime createdAt, String period, String? customPeriodDays, DateTime selectedDate) {
     final startOfDayCreated = DateTime(createdAt.year, createdAt.month, createdAt.day);
     final startOfSelectedDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
 
     if (startOfSelectedDay.isBefore(startOfDayCreated)) return false;
 
     final durationDays = _getPeriodDurationInDays(period, customPeriodDays);
-    final endOfPeriodDay = startOfDayCreated.add(Duration(days: durationDays));
+
+    // Subtract 1 day so that a 3-day duration starting on day 13 ends on day 15 (13, 14, 15)
+    final endOfPeriodDay = startOfDayCreated.add(Duration(days: durationDays - 1));
 
     if (startOfSelectedDay.isAfter(endOfPeriodDay)) return false;
 
     return true;
   }
 
-
-  /// Checks if two dates fall into the same ISO calendar week (Mon-Sun)
   bool _isSameWeek(DateTime d1, DateTime d2) {
     // Adjust to start of the week (Monday)
     final startOfWeek1 = d1.subtract(Duration(days: d1.weekday - 1));
@@ -198,7 +199,7 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
     final String selectedDateKey = _formatDateKey(_selectedDate);
 
     return Scaffold(
-      backgroundColor: AppColors.grey,
+      backgroundColor: AppColors.light,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -420,7 +421,7 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: isCompleted ? const Color(0xFFEDFFF4) : AppColors.grey,
+        color: isCompleted ? const Color(0xFFEDFFF4) : AppColors.light,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCompleted ? Colors.transparent : const Color(0xFFEDFFF4),

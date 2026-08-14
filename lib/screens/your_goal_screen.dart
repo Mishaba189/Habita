@@ -7,6 +7,7 @@ import '../providers/habit_provider.dart';
 import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/empty_state.dart';
+import 'goal_detail_screen.dart';
 
 
 class YourGoalsScreen extends StatelessWidget {
@@ -71,15 +72,10 @@ class YourGoalsScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Goals List Consumer
+              // Goals List Consumer
               Expanded(
                 child: Consumer<HabitProvider>(
                   builder: (context, habitProvider, child) {
-                    // if (habitProvider.isLoading) {
-                    //   return const Center(
-                    //     child: CircularProgressIndicator(color: AppColors.orange),
-                    //   );
-                    // }
-
                     if (habitProvider.goals.isEmpty) {
                       return Center(
                         child: Padding(
@@ -97,11 +93,15 @@ class YourGoalsScreen extends StatelessWidget {
                       );
                     }
 
+                    // Sort goals so the newest created ones appear first
+                    final sortedGoals = List<HabitModel>.from(habitProvider.goals)
+                      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
                     return ListView.separated(
-                      itemCount: habitProvider.goals.length,
+                      itemCount: sortedGoals.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
-                        final HabitModel goal = habitProvider.goals[index];
+                        final HabitModel goal = sortedGoals[index];
                         final int totalDays = _getTotalDays(goal.period, goal.customPeriodDays);
                         final int currentProgress = _calculateCompletedDaysProgress(
                           goal.completedDates,
@@ -111,147 +111,157 @@ class YourGoalsScreen extends StatelessWidget {
                             ? (currentProgress / totalDays).clamp(0.0, 1.0)
                             : 0.0;
 
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.grey,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFEDEDED)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Title & PopUp Menu Option
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      goal.goal.isNotEmpty ? goal.goal : goal.habitName,
-                                      style: GoogleFonts.nunito(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => GoalDetailsScreen(habit: goal),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.light,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFEDEDED)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Title & PopUp Menu Option
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        goal.goal.isNotEmpty ? goal.goal : goal.habitName,
+                                        style: GoogleFonts.nunito(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.blackGrey,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        size: 20,
                                         color: AppColors.blackGrey,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    icon: const Icon(
-                                      Icons.more_vert,
-                                      size: 20,
-                                      color: AppColors.blackGrey,
-                                    ),
-                                    color: Colors.white,
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    onSelected: (String value) {
-                                      if (goal.id == null) return;
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      onSelected: (String value) {
+                                        if (goal.id == null) return;
 
-                                      if (value == 'edit') {
-                                        showCreateHabitDialog(
-                                          context,
-                                          isEdit: true,
-                                          goal: goal,
-                                        );
-                                      } else if (value == 'delete') {
-                                        showDeleteConfirmationDialog(
-                                          context: context,
-                                          onDeleteConfirm: () {
-                                            habitProvider.deleteGoal(goal.id!);
-                                            onDelete?.call(goal.id!);
-                                          },
-                                        );
-                                      }
-                                    },
-                                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                      PopupMenuItem<String>(
-                                        value: 'edit',
-                                        child: Text(
-                                          'Edit',
-                                          style: GoogleFonts.nunito(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.blackGrey,
+                                        if (value == 'edit') {
+                                          showCreateHabitDialog(
+                                            context,
+                                            isEdit: true,
+                                            goal: goal,
+                                          );
+                                        } else if (value == 'delete') {
+                                          showDeleteConfirmationDialog(
+                                            context: context,
+                                            onDeleteConfirm: () {
+                                              habitProvider.deleteGoal(goal.id!);
+                                              onDelete?.call(goal.id!);
+                                            },
+                                          );
+                                        }
+                                      },
+                                      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                        PopupMenuItem<String>(
+                                          value: 'edit',
+                                          child: Text(
+                                            'Edit',
+                                            style: GoogleFonts.nunito(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.blackGrey,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      PopupMenuItem<String>(
-                                        value: 'delete',
-                                        child: Text(
-                                          'Delete',
-                                          style: GoogleFonts.nunito(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.redAccent,
+                                        PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Text(
+                                            'Delete',
+                                            style: GoogleFonts.nunito(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.redAccent,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  )
-                                ],
-                              ),
-                              const SizedBox(height: 5),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
 
-                              // Custom Gradient Progress Bar
-                              Padding(
-                                padding: const EdgeInsets.only(right: 24),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Stack(
-                                    children: [
-                                      Container(
-                                        height: 13,
-                                        width: double.infinity,
-                                        color: const Color(0xFFEBEBEB),
-                                      ),
-                                      FractionallySizedBox(
-                                        widthFactor: progressRatio,
-                                        child: Container(
+                                // Custom Gradient Progress Bar
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 24),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Stack(
+                                      children: [
+                                        Container(
                                           height: 13,
-                                          decoration: BoxDecoration(
-                                            gradient: AppColors.orangeGradient,
-                                            borderRadius: BorderRadius.circular(4),
+                                          width: double.infinity,
+                                          color: const Color(0xFFEBEBEB),
+                                        ),
+                                        FractionallySizedBox(
+                                          widthFactor: progressRatio,
+                                          child: Container(
+                                            height: 13,
+                                            decoration: BoxDecoration(
+                                              gradient: AppColors.orangeGradient,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
+                                const SizedBox(height: 10),
 
-                              // Target Days Met Counter
-                              Text(
-                                "$currentProgress from $totalDays days target",
-                                style: GoogleFonts.nunito(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color:AppColors.blackGrey,
+                                // Target Days Met Counter
+                                Text(
+                                  "$currentProgress from $totalDays days target",
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.blackGrey,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
+                                const SizedBox(height: 6),
 
-                              // Goal Frequency Tag
-                              Text(
-                                goal.habitType.isNotEmpty ? goal.habitType : goal.period,
-                                style: GoogleFonts.nunito(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.orange,
+                                // Goal Frequency Tag
+                                Text(
+                                  goal.habitType.isNotEmpty ? goal.habitType : goal.period,
+                                  style: GoogleFonts.nunito(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.orange,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
                     );
                   },
                 ),
-              ),
+              )
             ],
           ),
         ),

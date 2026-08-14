@@ -13,7 +13,6 @@ void showCreateHabitDialog(
       bool isEdit = false,
       HabitModel? goal, // Pass existing goal object when editing
     }) {
-  // Pre-fill controllers if editing
   final TextEditingController goalController = TextEditingController(
     text: isEdit && goal != null ? goal.goal : '',
   );
@@ -43,8 +42,6 @@ void showCreateHabitDialog(
   ];
 
   final List<String> daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  // Initialize values from goal if in edit mode
   String selectedPeriod = (isEdit && goal != null && goal.period.isNotEmpty)
       ? goal.period
       : '1 Month (30 Days)';

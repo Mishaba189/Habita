@@ -48,7 +48,7 @@ class _SplashState extends State<Splash> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.grey, // Optional: match background color
+      backgroundColor: AppColors.light, // Optional: match background color
       body: Center(
         child: Text(
           'Habita',
