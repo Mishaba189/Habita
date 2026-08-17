@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:habita/screens/account_screen.dart';
+import 'package:habita/screens/terms_screen.dart';
 import '../constants/app_colors.dart';
 
 
@@ -20,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
               Text(
                 "Setting",
                 style: GoogleFonts.nunito(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: AppColors.blackGrey,
                 ),
@@ -47,32 +49,32 @@ class SettingsScreen extends StatelessWidget {
                       title: "Account",
                       onTap: () {
                         // Navigate to Account screen
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => AccountScreen()));
                       },
                     ),
                     const SizedBox(height: 12),
                     _buildSettingTile(
                       title: "Term and Condition",
                       onTap: () {
-                        // Navigate to Terms screen
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsScreen()));
                       },
                     ),
                     const SizedBox(height: 12),
                     _buildSettingTile(
                       title: "Policy",
                       onTap: () {
-                        // Navigate to Policy screen
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PolicyScreen()));
                       },
                     ),
                     const SizedBox(height: 12),
                     _buildSettingTile(
                       title: "About App",
                       onTap: () {
-                        // Navigate to About App screen
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppScreen()));
                       },
                     ),
                     const SizedBox(height: 12),
-                    // Integrated Logout Option
-                    _buildLogoutTile(context),
+
                   ],
                 ),
               ),

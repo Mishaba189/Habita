@@ -108,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return !startTarget.isAfter(endPeriodDay);
   }
 
-  /// Determines if a habit is scheduled for today
   bool _shouldShowToday(HabitModel habit, DateTime today) {
     if (!_isDateWithinPeriod(habit.createdAt, habit.period, habit.customPeriodDays, today)) {
       return false;
@@ -143,7 +142,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return true;
   }
 
-  /// Calculates progress metrics for goal cards
   Map<String, dynamic> _calculateGoalProgress(HabitModel habit, DateTime today) {
     final totalTargetDays = _getPeriodDurationInDays(habit.period, habit.customPeriodDays);
 
@@ -161,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
-  /// Refreshes habits data when pulled from top
   Future<void> _handleRefresh(BuildContext context) async {
     await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
   }
@@ -172,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final DateTime today = DateTime.now();
     final String todayKey = _formatDateKey(today);
 
-    // Dynamic date string format (e.g. "Sun, 1 Mar 2026")
+    // Dynamic date string format
     final constMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     final constWeekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     final String formattedDate = "${constWeekdays[today.weekday - 1]}, ${today.day} ${constMonths[today.month - 1]} ${today.year}";
@@ -190,32 +187,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Date & Sign Out
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      formattedDate,
-                      style: GoogleFonts.nunito(
-                        color: AppColors.blackGrey,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        authProvider.signOut();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) =>  AuthScreen()),
-                        );
-                      },
-                      icon: const Icon(Icons.logout_outlined),
-                      color: AppColors.orange,
-                    )
-                  ],
+                // Header Date
+                Text(
+                  formattedDate,
+                  style: GoogleFonts.nunito(
+                    color: AppColors.blackGrey,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-
+                SizedBox(height: 6,),
                 // Greeting Header
                 Row(
                   children: [
@@ -634,8 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onToggle,
     required VoidCallback onEdit,
     required VoidCallback onDelete,
-  }) {
-    return Container(
+  }) {return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: isCompleted ? const Color(0xFFEDFFF4) : AppColors.light,
@@ -736,8 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    );}
 
   Widget _buildGoalCard({
     required String title,
@@ -746,8 +725,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String frequency,
     required VoidCallback onEdit,
     required VoidCallback onDelete,
-  }) {
-    return Container(
+  }) {return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.light,
@@ -856,6 +834,5 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    );}
 }

@@ -31,6 +31,8 @@ class AuthProvider with ChangeNotifier {
 
   String _userName = '';
   String get userName => _userName;
+  String get userEmail => _auth.currentUser?.email ?? '';
+
 
   Future<void> fetchUserData() async {
     final user = _auth.currentUser;
@@ -212,6 +214,28 @@ class AuthProvider with ChangeNotifier {
     // await prefs.remove(keyUserPassword);
     // await prefs.setBool(keyIsRememberMe, false);
     notifyListeners();
+  }
+
+
+  Future<void> updateUserName(String newName) async {
+    _setLoading(true);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw 'No user logged in.';
+
+      // Update Firestore
+      await _firestore.collection('users').doc(user.uid).update({
+        'name': newName,
+      });
+
+      // Update local state variable
+      _userName = newName;
+      notifyListeners();
+    } catch (e) {
+      throw 'Failed to update name: ${e.toString()}';
+    } finally {
+      _setLoading(false);
+    }
   }
 
   void clearAll() {
