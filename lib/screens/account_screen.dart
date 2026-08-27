@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_colors.dart';
 import '../providers/auth_provider.dart';
@@ -409,6 +411,273 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  void _showPrivacySecurityDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Security Shield Header Icon
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.orangeGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.orange.withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  "Privacy & Security",
+                  style: GoogleFonts.nunito(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blackGrey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Subtitle/Message
+                Text(
+                  "Your account security and data protection settings standard.",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Info Items List
+                _buildPrivacyInfoTile(
+                  icon: Icons.lock_outline_rounded,
+                  title: "End-to-End Encryption",
+                  subtitle: "Your personal data is encrypted and securely stored.",
+                ),
+                const SizedBox(height: 12),
+                _buildPrivacyInfoTile(
+                  icon: Icons.remove_red_eye_outlined,
+                  title: "Data Privacy Policy",
+                  subtitle: "We never share your account information with third parties.",
+                ),
+                const SizedBox(height: 24),
+
+                // Full-width Close Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.orangeGradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.orange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        "Got It",
+                        style: GoogleFonts.nunito(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHelpSupportDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Support Icon Header
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.orangeGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.orange.withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.headset_mic_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                Text(
+                  "Help & Support",
+                  style: GoogleFonts.nunito(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blackGrey,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Subtitle
+                Text(
+                  "Need help? Copy contact info or tap the action button to connect immediately.",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Contact Actions List with Dual Buttons
+                _buildSupportContactTile(
+                  icon: Icons.phone_in_talk_rounded,
+                  title: "Call Us",
+                  value: "+91 6235006787",
+                  actionIcon: Icons.phone_forwarded_rounded,
+                  onRedirect: () => _launchUri('tel:+916235006787'),
+                ),
+                const SizedBox(height: 10),
+                _buildSupportContactTile(
+                  icon: Icons.chat_rounded,
+                  title: "WhatsApp Support",
+                  value: "+91 6235006787",
+                  actionIcon: Icons.open_in_new_rounded,
+                  onRedirect: () => _launchUri(
+                    'https://wa.me/916235006787?text=${Uri.encodeComponent("Hello Habita Support Team, I need assistance with my account.")}',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildSupportContactTile(
+                  icon: Icons.email_rounded,
+                  title: "Email Us",
+                  value: "habitasupport@gmail.com",
+                  actionIcon: Icons.send_rounded,
+                  onRedirect: () => _launchUri(
+                    'mailto:habitasupport@gmail.com?subject=${Uri.encodeComponent("Habita App Support Request")}&body=${Uri.encodeComponent("Hello Support Team,\n\nI need help regarding:")}',
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Full-width Close Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.orangeGradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.orange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        "Close",
+                        style: GoogleFonts.nunito(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper to launch URLs safely
+  Future<void> _launchUri(String uriString) async {
+    final Uri uri = Uri.parse(uriString);
+    if (!await launchUrl(
+      uri,
+      mode: LaunchMode.externalNonBrowserApplication,
+    )) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -613,7 +882,7 @@ class _AccountScreenState extends State<AccountScreen> {
               _buildActionTile(
                 icon: Icons.security_outlined,
                 title: "Privacy & Security",
-                onTap: () {},
+                onTap: _showPrivacySecurityDialog,
               ),
               const SizedBox(height: 28),
 
@@ -624,7 +893,7 @@ class _AccountScreenState extends State<AccountScreen> {
               _buildActionTile(
                 icon: Icons.help_outline_rounded,
                 title: "Help & Support",
-                onTap: () {},
+                onTap: _showHelpSupportDialog,
               ),
               const SizedBox(height: 12),
 
@@ -647,6 +916,128 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   // --- Helper Widgets ---
+
+  Widget _buildSupportContactTile({
+    required IconData icon,
+    required String title,
+    required String value,
+    required IconData actionIcon,
+    required VoidCallback onRedirect,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.light,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: AppColors.orange),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkGrey,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.nunito(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blackGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Action Button 1: Copy to Clipboard
+          IconButton(
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(6),
+            tooltip: 'Copy',
+            icon: const Icon(
+              Icons.content_copy_rounded,
+              size: 18,
+              color: AppColors.darkGrey,
+            ),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$title copied to clipboard!'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: AppColors.blackGrey,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
+          // Action Button 2: App Deep-link / Launch Redirect
+          IconButton(
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(6),
+            tooltip: 'Open',
+            icon: Icon(
+              actionIcon,
+              size: 18,
+              color: AppColors.orange,
+            ),
+            onPressed: onRedirect,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyInfoTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.light,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.orange),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.blackGrey,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.nunito(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.darkGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 
   Widget _buildSectionHeader(String title) {
@@ -835,6 +1226,7 @@ class _AccountScreenState extends State<AccountScreen> {
       ],
     );
   }
+
   Widget _buildReadOnlyField({
     required String label,
     required String value,

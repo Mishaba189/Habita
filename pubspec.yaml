@@ -43,6 +43,8 @@ dependencies:
   cloud_firestore: ^6.7.1
   shared_preferences: ^2.5.5
   table_calendar: ^3.2.1
+  url_launcher: ^6.3.2
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -101,3 +103,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/icon_image.png"
+  remove_alpha_ios: true
