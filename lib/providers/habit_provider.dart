@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/habit_model.dart';
+import 'notification_provider.dart';
 
 class HabitProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -21,8 +22,6 @@ class HabitProvider with ChangeNotifier {
     final day = date.day.toString().padLeft(2, '0');
     return "$year-$month-$day";
   }
-
-  /// Fetch user habits and sort locally in memory by createdAt descending
   Future<void> fetchHabits() async {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -58,13 +57,10 @@ class HabitProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// Alias method to maintain backwards compatibility with screens calling fetchGoals
   Future<void> fetchGoals() async {
     await fetchHabits();
   }
 
-  /// Create a new habit using HabitModel
   Future<bool> createHabit({
     required String goal,
     required String habitName,
@@ -78,16 +74,12 @@ class HabitProvider with ChangeNotifier {
       debugPrint("Error: No authenticated user found.");
       return false;
     }
-
     _isLoading = true;
     notifyListeners();
-
     try {
-      // Generate unique ID using timestamp
       final String timestampId = DateTime.now().millisecondsSinceEpoch.toString();
-
       final habit = HabitModel(
-        id: timestampId, // Pass timestamp ID to model if model accepts 'id'
+        id: timestampId,
         userId: currentUser.uid,
         goal: goal,
         habitName: habitName,
@@ -97,10 +89,19 @@ class HabitProvider with ChangeNotifier {
         specificDays: habitType == 'Specific Days' ? specificDays.toList() : [],
         createdAt: DateTime.now(),
       );
-
-      // Save with the timestamp as the document ID
       await _firestore.collection('habits').doc(timestampId).set(habit.toMap());
-
+      final notificationRef = _firestore.collection('notifications').doc();
+      await notificationRef.set({
+        'id': notificationRef.id,
+        'userId': currentUser.uid,
+        'type': 'new_goal_created',
+        'title': 'New Habit Added 🚀',
+        'message': 'Your new habit "$habitName" has been set up successfully.',
+        'status': 'Active',
+        'isSuccess': true,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
       await fetchHabits();
       return true;
     } catch (e) {
@@ -139,6 +140,8 @@ class HabitProvider with ChangeNotifier {
     }
   }
 
+
+
   /// Delete a habit/goal by ID
   Future<bool> deleteHabit(String habitId) async {
     try {
@@ -157,7 +160,12 @@ class HabitProvider with ChangeNotifier {
     return await deleteHabit(goalId);
   }
 
-  Future<void> toggleHabitCompletionForDate(String habitId, String dateKey, bool newStatus) async {
+  Future<void> toggleHabitCompletionForDate(
+      String habitId,
+      String dateKey,
+      bool newStatus, {
+        NotificationProvider? notificationProvider,
+      }) async {
     try {
       final index = _habits.indexWhere((h) => h.id == habitId);
       if (index != -1) {
@@ -172,12 +180,12 @@ class HabitProvider with ChangeNotifier {
 
         final bool isToday = dateKey == _formatDateKey(DateTime.now());
 
-        _habits[index] = existing.copyWith(
+        final updatedHabit = existing.copyWith(
           completedDates: updatedDates,
           isCompleted: isToday ? newStatus : existing.isCompleted,
         );
 
-        // Forces the UI/Consumer to re-evaluate filtering immediately
+        _habits[index] = updatedHabit;
         notifyListeners();
 
         await _firestore.collection('habits').doc(habitId).update({
@@ -186,6 +194,11 @@ class HabitProvider with ChangeNotifier {
               : FieldValue.arrayRemove([dateKey]),
           if (isToday) 'isCompleted': newStatus,
         });
+
+        // Evaluate goals immediately upon marking completion
+        if (notificationProvider != null) {
+          await notificationProvider.evaluateHabitNotifications(_habits);
+        }
       }
     } catch (e) {
       debugPrint("Error updating habit completion date: $e");
@@ -237,4 +250,5 @@ class HabitProvider with ChangeNotifier {
       return false;
     }
   }
+
 }

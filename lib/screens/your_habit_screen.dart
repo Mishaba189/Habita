@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/empty_state.dart';
@@ -352,6 +353,11 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
                             );
                           }
 
+                          final DateTime today = DateTime.now();
+                          final DateTime normalizedToday = DateTime(today.year, today.month, today.day);
+                          final DateTime normalizedSelected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+                          final bool isFutureDate = normalizedSelected.isAfter(normalizedToday);
+
                           return ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -362,16 +368,21 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
                               final bool isCompletedForSelectedDate =
                                   habit.completedDates?.contains(selectedDateKey) ??
                                       (_isSameDay(_selectedDate, DateTime.now()) ? habit.isCompleted : false);
+
                               return _buildHabitCard(
                                 context: context,
                                 habit: habit,
                                 isCompleted: isCompletedForSelectedDate,
+                                isFutureDate: isFutureDate,
                                 onToggle: () {
-                                  if (habit.id != null) {
+                                  if (!isFutureDate && habit.id != null) {
+                                    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+
                                     habitProvider.toggleHabitCompletionForDate(
                                       habit.id!,
                                       selectedDateKey,
                                       !isCompletedForSelectedDate,
+                                      notificationProvider: notificationProvider,
                                     );
                                   }
                                 },
@@ -414,6 +425,7 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
     required BuildContext context,
     required HabitModel habit,
     required bool isCompleted,
+    required bool isFutureDate,
     required VoidCallback onToggle,
     required VoidCallback onEdit,
     required VoidCallback onDelete,
@@ -440,41 +452,43 @@ class _YourHabitScreenState extends State<YourHabitScreen> {
             ),
           ),
 
-          // Custom Green Checkbox
-          GestureDetector(
-            onTap: onToggle,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                gradient: isCompleted ? AppColors.greenGradient : null,
-                color: isCompleted ? null : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isCompleted ? Colors.transparent : AppColors.blackGrey,
-                  width: 2,
-                ),
-                boxShadow: isCompleted
-                    ? [
-                  BoxShadow(
-                    color: const Color(0xFF37C871).withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
+          // Custom Green Checkbox (Completely hidden for future dates)
+          if (!isFutureDate) ...[
+            GestureDetector(
+              onTap: onToggle,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  gradient: isCompleted ? AppColors.greenGradient : null,
+                  color: isCompleted ? null : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isCompleted ? Colors.transparent : AppColors.blackGrey,
+                    width: 2,
                   ),
-                ]
-                    : [],
+                  boxShadow: isCompleted
+                      ? [
+                    BoxShadow(
+                      color: const Color(0xFF37C871).withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                      : [],
+                ),
+                child: isCompleted
+                    ? const Icon(
+                  Icons.check_rounded,
+                  size: 16,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                )
+                    : null,
               ),
-              child: isCompleted
-                  ? const Icon(
-                Icons.check_rounded,
-                size: 16,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-              )
-                  : null,
             ),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 8),
+          ],
 
           // Options Menu
           PopupMenuButton<String>(

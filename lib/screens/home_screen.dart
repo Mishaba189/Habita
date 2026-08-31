@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:habita/screens/auth_screen.dart';
+import 'package:habita/screens/notification_screen.dart';
 import 'package:habita/screens/your_goal_screen.dart';
 import 'package:habita/screens/your_habit_screen.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,7 @@ import '../constants/app_colors.dart';
 import '../models/habit_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/create_habit_dialog.dart';
 import '../widgets/delete_confirmation_dialog.dart';
 import '../widgets/empty_state.dart';
@@ -50,10 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final habitProvider = Provider.of<HabitProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+
 
       habitProvider.fetchHabits();
       habitProvider.fetchGoals();
       authProvider.fetchUserData();
+
+       notificationProvider.fetchNotifications();
+       notificationProvider.checkEndingHabits(habitProvider.habits);
+      notificationProvider.evaluateHabitNotifications(habitProvider.habits);
+      final habits = Provider.of<HabitProvider>(context).habits;
+      Provider.of<NotificationProvider>(context, listen: false).updateHabits(habits);
     });
   }
   String _formatDateKey(DateTime date) {
@@ -187,52 +197,143 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Date
-                Text(
-                  formattedDate,
-                  style: GoogleFonts.nunito(
-                    color: AppColors.blackGrey,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 6,),
-                // Greeting Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Hello, ",
-                      style: GoogleFonts.nunito(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.blackGrey,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: GoogleFonts.nunito(
+                            color: AppColors.blackGrey,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Greeting Header
+                        Row(
+                          children: [
+                            Text(
+                              "Hello, ",
+                              style: GoogleFonts.nunito(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.blackGrey,
+                              ),
+                            ),
+                            Consumer<AuthProvider>(
+                              builder: (context, authProvider, child) {
+                                final displayName = authProvider.userName.isNotEmpty
+                                    ? authProvider.userName
+                                    : 'User';
+                                return ShaderMask(
+                                  shaderCallback: (Rect bounds) =>
+                                      AppColors.orangeGradient.createShader(bounds),
+                                  blendMode: BlendMode.srcIn,
+                                  child: Text(
+                                    "$displayName!",
+                                    style: GoogleFonts.nunito(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    Consumer<AuthProvider>(
-                      builder: (context, authProvider, child) {
-                        final displayName = authProvider.userName.isNotEmpty
-                            ? authProvider.userName
-                            : 'User';
-                        return ShaderMask(
-                          shaderCallback: (Rect bounds) =>
-                              AppColors.orangeGradient.createShader(bounds),
-                          blendMode: BlendMode.srcIn,
-                          child: Text(
-                            "$displayName!",
-                            style: GoogleFonts.nunito(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+
+                    GestureDetector(
+                      onTap: () {
+                        final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+                        notificationProvider.fetchNotifications();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationScreen()));
+                      },
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Base Icon Container
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
                               color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFEBEBEB),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.notifications_none_rounded,
+                                color: AppColors.blackGrey,
+                                size: 22,
+                              ),
                             ),
                           ),
-                        );
-                      },
-                    ),
+
+                          // Dynamic Unread Count Badge
+                          Consumer<NotificationProvider>(
+                            builder: (context, notificationProvider, child) {
+                              final unreadCount = notificationProvider.unreadCount;
+
+                              if (unreadCount == 0) return const SizedBox.shrink();
+
+                              return Positioned(
+                                top: -4,
+                                right: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                    minHeight: 18,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: AppColors.orangeGradient,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.orange.withValues(alpha: 0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      unreadCount > 99 ? '99+' : '$unreadCount',
+                                      style: GoogleFonts.nunito(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // Dynamic Progress Banner Card
+                //dynamic banner card
                 Consumer<HabitProvider>(
                   builder: (context, habitProvider, child) {
                     final todayHabits = habitProvider.habits.where((h) => _shouldShowToday(h, today)).toList();
@@ -413,10 +514,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 isCompleted: isCompleted,
                                 onToggle: () {
                                   if (habit.id != null) {
+                                    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
                                     habitProvider.toggleHabitCompletionForDate(
                                       habit.id!,
                                       todayKey,
                                       !isCompleted,
+                                      notificationProvider: notificationProvider,
                                     );
                                   }
                                 },
