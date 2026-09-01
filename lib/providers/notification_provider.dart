@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/habit_model.dart';
@@ -136,6 +137,7 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// Centralized method to handle adding notifications (DB + Phone Taskbar)
+  /// Centralized method to handle adding notifications (DB + Phone Taskbar)
   Future<void> addNotification({
     required String customDocId,
     required String type,
@@ -145,6 +147,10 @@ class NotificationProvider with ChangeNotifier {
     required bool isSuccess,
     String? habitId,
   }) async {
+    // 1. Check global notification setting preference
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
@@ -168,23 +174,27 @@ class NotificationProvider with ChangeNotifier {
     _notifications.insert(0, notification);
     notifyListeners();
 
-    // 1. Save to Cloud Firestore
+    // Save to Cloud Firestore
     try {
       await docRef.set(notification.toMap());
     } catch (e) {
       debugPrint("Error adding notification to Firestore: $e");
     }
 
-    // 2. Trigger phone system taskbar popup
-    try {
-      final int notificationId = customDocId.hashCode.abs();
-      await _showSystemNotification(
-        id: notificationId,
-        title: title,
-        body: message,
-      );
-    } catch (e) {
-      debugPrint("Error displaying phone taskbar notification: $e");
+    // 2. Trigger phone system taskbar popup ONLY if notifications are enabled
+    if (isEnabled) {
+      try {
+        final int notificationId = customDocId.hashCode.abs();
+        await _showSystemNotification(
+          id: notificationId,
+          title: title,
+          body: message,
+        );
+      } catch (e) {
+        debugPrint("Error displaying phone taskbar notification: $e");
+      }
+    } else {
+      debugPrint("Notifications disabled: Skipping system tray popup for doc $customDocId");
     }
   }
 
@@ -194,6 +204,16 @@ class NotificationProvider with ChangeNotifier {
     required int hour,
     required int minute,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+
+    // Exit immediately if user has disabled notifications in settings
+    if (!isEnabled) {
+      debugPrint("Notifications are globally disabled. Skipping schedule for: $habitName");
+      return;
+    }
+
+    // 2. Schedule the notification
     final int notificationId = habitId.hashCode.abs();
     final now = tz.TZDateTime.now(tz.local);
     var scheduledDate =
@@ -414,6 +434,16 @@ class NotificationProvider with ChangeNotifier {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null || habits.isEmpty) return;
 
+    // Guard: Check global preference before running evaluation loop
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+
+    if (!isEnabled) {
+      debugPrint("Global push notifications disabled. Clearing pending schedules.");
+      await cancelAllNotifications();
+      return; // Stop evaluation completely
+    }
+
     _cachedHabits = habits;
     final DateTime now = DateTime.now();
     final String todayKey = _formatDateKey(now);
@@ -487,7 +517,7 @@ class NotificationProvider with ChangeNotifier {
         final String progressPercent = "${percentageVal.toStringAsFixed(0)}%";
         final String goalTitle = habit.goal.isNotEmpty ? habit.goal : habit.habitName;
 
-        // RULE 1: End Date is Today AND completed today (even if some past days were missed)
+        // RULE 1: End Date is Today AND completed today
         if (endDateKey == todayKey && isTodayCompleted) {
           final bool is100Percent = totalCompleted >= targetDays;
           final String docId = "goal_completed_${habit.id}_$todayKey";
@@ -503,7 +533,7 @@ class NotificationProvider with ChangeNotifier {
             habitId: habit.id,
           );
         }
-        // RULE 2: Midnight Expiration Check (Past end date or Midnight on End Date while uncompleted)
+        // RULE 2: Midnight Expiration Check
         else if (now.isAfter(endDate.add(const Duration(days: 1))) ||
             (endDateKey == todayKey && now.hour == 0 && !isTodayCompleted)) {
           final String docId = "goal_expired_${habit.id}_$todayKey";
@@ -525,5 +555,15 @@ class NotificationProvider with ChangeNotifier {
 
   Future<void> checkEndingHabits(List<HabitModel> habits) async {
     await evaluateHabitNotifications(habits);
+  }
+
+
+  Future<void> cancelAllNotifications() async {
+    try {
+      await _localNotifications.cancelAll();
+      debugPrint("All scheduled push notifications cancelled successfully.");
+    } catch (e) {
+      debugPrint("Error cancelling notifications: $e");
+    }
   }
 }

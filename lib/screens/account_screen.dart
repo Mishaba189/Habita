@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_colors.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import 'auth_screen.dart';
 
 
@@ -18,9 +20,10 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   late final TextEditingController _nameController;
-  bool _notificationsEnabled = true;
 
-  // State for toggling name editing mode
+  // 1. Change to nullable bool so we know when preferences have finished loading
+  bool? _notificationsEnabled;
+
   bool _isEditingName = false;
   String _selectedLanguage = "English";
 
@@ -29,6 +32,65 @@ class _AccountScreenState extends State<AccountScreen> {
     super.initState();
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     _nameController = TextEditingController(text: authProvider.userName);
+
+    _loadNotificationPreference();
+  }
+
+  /// Reads the saved toggle state and ensures scheduled system alerts match the preference
+  Future<void> _loadNotificationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+
+    if (mounted) {
+      setState(() {
+        _notificationsEnabled = isEnabled; // 2. Update to actual saved value
+      });
+    }
+
+    // Clear pending alerts from system memory if notifications are disabled
+    if (!isEnabled && mounted) {
+      final notificationProvider =
+      Provider.of<NotificationProvider>(context, listen: false);
+      await notificationProvider.cancelAllNotifications();
+    }
+  }
+
+  /// Handles enabling/disabling push notifications & saves to storage
+  Future<void> _handleNotificationToggle(bool enabled) async {
+    setState(() {
+      _notificationsEnabled = enabled;
+    });
+
+    // 1. Save state to local device storage
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('push_notifications_enabled', enabled);
+
+    // 2. Manage Provider notifications
+    if (!mounted) return;
+    final notificationProvider =
+    Provider.of<NotificationProvider>(context, listen: false);
+
+    if (enabled) {
+      notificationProvider.initNotificationListener();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Push notifications enabled'),
+          duration: Duration(seconds: 2),
+          backgroundColor: AppColors.blackGrey,
+        ),
+      );
+    } else {
+      await notificationProvider.cancelAllNotifications();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Push notifications disabled'),
+          duration: Duration(seconds: 2),
+          backgroundColor: AppColors.blackGrey,
+        ),
+      );
+    }
   }
 
   @override
@@ -811,7 +873,6 @@ class _AccountScreenState extends State<AccountScreen> {
               _buildSectionHeader("APP SETTINGS"),
               const SizedBox(height: 12),
 
-              // Notifications Toggle
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: _cardBoxDecoration(),
@@ -822,48 +883,55 @@ class _AccountScreenState extends State<AccountScreen> {
                       icon: Icons.notifications_active_outlined,
                       title: "Push Notifications",
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _notificationsEnabled = !_notificationsEnabled;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        width: 40,
-                        height: 22,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: _notificationsEnabled
-                              ? AppColors.orange
-                              : Colors.grey.withOpacity(0.25),
+                    // Check if loading preference state
+                    if (_notificationsEnabled == null)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.orange,
                         ),
-                        child: AnimatedAlign(
+                      )
+                    else
+                      GestureDetector(
+                        onTap: () => _handleNotificationToggle(!_notificationsEnabled!),
+                        child: AnimatedContainer(
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeInOut,
-                          alignment: _notificationsEnabled
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 3,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
+                          width: 40,
+                          height: 22,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: _notificationsEnabled!
+                                ? AppColors.orange
+                                : Colors.grey.withOpacity(0.25),
+                          ),
+                          child: AnimatedAlign(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            alignment: _notificationsEnabled!
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 3,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
