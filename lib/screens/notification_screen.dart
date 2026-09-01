@@ -18,7 +18,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotificationProvider>().fetchNotifications();
+      final provider = context.read<NotificationProvider>();
+      provider.initNotificationListener();
+      provider.fetchNotifications();
     });
   }
 
@@ -87,7 +89,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     if (provider.isLoading) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    if (provider.notifications.isEmpty) {
+
+                    // the unified "new_habit_goal_created" notification displays.
+                    final filteredNotifications = provider.notifications.where((item) {
+                      final type = item.type.toLowerCase().trim();
+                      return type != 'new_habit_created' && type != 'new_goal_created';
+                    }).toList();
+
+                    if (filteredNotifications.isEmpty) {
                       return Center(
                         child: Text(
                           "No notifications yet",
@@ -97,10 +106,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     }
 
                     return ListView.separated(
-                      itemCount: provider.notifications.length,
+                      itemCount: filteredNotifications.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final item = provider.notifications[index];
+                        final item = filteredNotifications[index];
                         return GestureDetector(
                           onTap: () => provider.markAsRead(item.id),
                           child: _buildNotificationCard(
@@ -157,23 +166,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
         break;
 
+      case 'new_habit_goal_created':
+        iconData = Icons.stars_rounded;
+        iconColor = const Color(0xFF2F80ED);
+        iconBgColor = const Color(0xFFEDF5FF);
+        badgeColor = const Color(0xFFEDF5FF);
+        badgeTextColor = const Color(0xFF2F80ED);
+        break;
+
       case 'target_date_reminder':
       case 'nightly_missed_reminder':
       case 'day_end_reminder':
+      default:
         iconData = Icons.access_time_filled_rounded;
         iconColor = AppColors.orange;
         iconBgColor = const Color(0xFFFFF0E6);
         badgeColor = const Color(0xFFFFF0E6);
         badgeTextColor = AppColors.orange;
-        break;
-
-      case 'new_goal_created':
-      default:
-        iconData = Icons.add_task_rounded;
-        iconColor = const Color(0xFF2F80ED);
-        iconBgColor = const Color(0xFFEDF5FF);
-        badgeColor = const Color(0xFFEDF5FF);
-        badgeTextColor = const Color(0xFF2F80ED);
         break;
     }
 

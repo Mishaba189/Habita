@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
+import '../providers/notification_provider.dart';
 import 'auth_screen.dart';
 import 'bottom_menu.dart';
 
@@ -22,16 +24,44 @@ class _SplashState extends State<Splash> {
   }
 
   void _checkSessionAndNavigate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool isFirstTime = prefs.getBool('is_first_time') ?? true;
+
+    // 1. Request permissions FIRST on launch
+    if (mounted && isFirstTime) {
+      final FlutterLocalNotificationsPlugin localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+      final androidImplementation = localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+      // execution halts here until user taps Allow or Deny
+      await androidImplementation?.requestNotificationsPermission();
+      await androidImplementation?.requestExactAlarmsPermission();
+
+      final iosImplementation = localNotifications
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+      await iosImplementation?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // Save flag so it won't prompt again
+      await prefs.setBool('is_first_time', false);
+    }
+
+    // 2. Timer starts ONLY after the permission dialog is dismissed (or skipped)
     await Future.delayed(const Duration(milliseconds: 800));
 
-    final prefs = await SharedPreferences.getInstance();
+    // 3. Perform navigation
     final bool isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-
 
     if (mounted) {
       if (isLoggedIn) {
         await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
         await Provider.of<AuthProvider>(context, listen: false).fetchUserData();
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => BottomMenu()),
@@ -48,7 +78,7 @@ class _SplashState extends State<Splash> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.light, // Optional: match background color
+      backgroundColor: AppColors.light,
       body: Center(
         child: Text(
           'Habita',

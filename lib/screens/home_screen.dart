@@ -45,27 +45,43 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final habitProvider = Provider.of<HabitProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    WidgetsBinding.instance.addObserver(this);
 
-
-      habitProvider.fetchHabits();
-      habitProvider.fetchGoals();
-      authProvider.fetchUserData();
-
-       notificationProvider.fetchNotifications();
-       notificationProvider.checkEndingHabits(habitProvider.habits);
-      notificationProvider.evaluateHabitNotifications(habitProvider.habits);
-      final habits = Provider.of<HabitProvider>(context).habits;
-      Provider.of<NotificationProvider>(context, listen: false).updateHabits(habits);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _fetchAndEvaluate();
     });
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchAndEvaluate();
+    }
+  }
+
+  Future<void> _fetchAndEvaluate() async {
+    final habitProvider = Provider.of<HabitProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+
+    await habitProvider.fetchHabits();
+    await authProvider.fetchUserData();
+
+    final habits = habitProvider.habits;
+    notificationProvider.updateHabits(habits);
+    notificationProvider.checkEndingHabits(habits);
+  }
+
   String _formatDateKey(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -170,7 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleRefresh(BuildContext context) async {
-    await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
+    final habitProvider = Provider.of<HabitProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    await habitProvider.fetchHabits();
+    notificationProvider.fetchNotifications();
+    await notificationProvider.evaluateHabitNotifications(habitProvider.habits);
   }
 
   @override

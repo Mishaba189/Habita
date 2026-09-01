@@ -5,11 +5,13 @@ import 'package:habita/providers/habit_provider.dart';
 import 'package:habita/providers/notification_provider.dart';
 import 'package:habita/providers/report_provider.dart';
 import 'package:habita/screens/splash.dart';
+import 'package:habita/services/notification_services.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initNotifications();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,

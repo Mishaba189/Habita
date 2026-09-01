@@ -7,6 +7,7 @@ import 'package:habita/screens/bottom_menu.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
+import '../providers/notification_provider.dart';
 
 enum AuthView {  logIn ,signUp, forgotPassword }
 class AuthScreen extends StatelessWidget {
@@ -30,6 +31,7 @@ class AuthScreen extends StatelessWidget {
           if (context.mounted) {
             await Provider.of<HabitProvider>(context, listen: false).fetchHabits();
             await Provider.of<AuthProvider>(context, listen: false).fetchUserData();
+            await Provider.of<NotificationProvider>(context,listen: false).fetchNotifications();
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => BottomMenu()));
           }
         }

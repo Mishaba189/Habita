@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
+import '../providers/notification_provider.dart';
 import 'delete_confirmation_dialog.dart';
 
 
@@ -493,32 +494,27 @@ void showCreateHabitDialog(
                             : () async {
                           final textGoal = goalController.text.trim();
                           final habitName = habitNameController.text.trim();
-                          final customDays =
-                          customPeriodController.text.trim();
+                          final customDays = customPeriodController.text.trim();
 
                           if (textGoal.isEmpty || habitName.isEmpty) {
                             setState(() {
-                              errorMessage =
-                              "Please fill in both goal and habit fields.";
+                              errorMessage = "Please fill in both goal and habit fields.";
                             });
                             return;
                           }
 
-                          if (selectedPeriod == 'Custom' &&
-                              customDays.isEmpty) {
+                          if (selectedPeriod == 'Custom' && customDays.isEmpty) {
                             setState(() {
-                              errorMessage =
-                              "Please specify custom period days.";
+                              errorMessage = "Please specify custom period days.";
                             });
                             return;
                           }
 
-                          if (selectedHabitType == 'Specific Days' &&
-                              selectedSpecificDays.isEmpty) {
+                          if (selectedHabitType == 'Specific Days' && selectedSpecificDays.isEmpty) {
                             setState(() {
                               errorMessage = "Please select at least one day.";
                             });
-                            Icon: return;
+                            return;
                           }
 
                           setState(() {
@@ -527,6 +523,7 @@ void showCreateHabitDialog(
 
                           if (isEdit) {
                             if (goal?.id == null) return;
+
                             // Call update function in Provider
                             final success = await habitProvider.updateHabit(
                               habitId: goal!.id!,
@@ -541,7 +538,7 @@ void showCreateHabitDialog(
                             if (success && dialogContext.mounted) {
                               Navigator.pop(dialogContext);
                               Navigator.push(
-                                dialogContext,
+                                context,
                                 MaterialPageRoute(
                                   builder: (_) => const HabitSuccessScreen(
                                     title: "Updated!",
@@ -551,11 +548,13 @@ void showCreateHabitDialog(
                               );
                             } else if (dialogContext.mounted) {
                               setState(() {
-                                errorMessage =
-                                "Failed to update habit. Please try again.";
+                                errorMessage = "Failed to update habit. Please try again.";
                               });
                             }
                           } else {
+                            // Capture Provider before popping dialog
+                            final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+
                             // Call create function in Provider
                             final success = await habitProvider.createHabit(
                               goal: textGoal,
@@ -568,16 +567,29 @@ void showCreateHabitDialog(
 
                             if (success && dialogContext.mounted) {
                               Navigator.pop(dialogContext);
+
                               Navigator.push(
-                                dialogContext,
+                                context,
                                 MaterialPageRoute(
                                   builder: (_) => const HabitSuccessScreen(),
                                 ),
                               );
+
+                              // Single combined notification for Goal + Habit
+                              notificationProvider.addNotification(
+                                customDocId: "new_habit_goal_${DateTime.now().millisecondsSinceEpoch}",
+                                type: "new_habit_goal_created",
+                                title: "New Goal Created! 🚀",
+                                message: "You're all set to build \"$habitName\" habit and reach your goal: \"$textGoal\". Let's get started!",
+                                status: "Active",
+                                isSuccess: true,
+                                habitId: goal?.id,
+                              );
+
+                              notificationProvider.fetchNotifications();
                             } else if (dialogContext.mounted) {
                               setState(() {
-                                errorMessage =
-                                "Failed to create habit. Please try again.";
+                                errorMessage = "Failed to create habit. Please try again.";
                               });
                             }
                           }

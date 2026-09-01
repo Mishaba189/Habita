@@ -75,20 +75,25 @@ class ReportProvider extends ChangeNotifier {
 
     final String cleanPeriod = period.trim().toLowerCase();
 
+    // Explicit day targets
     if (cleanPeriod.contains('7 day')) return 7;
     if (cleanPeriod.contains('14 day')) return 14;
-    if (cleanPeriod.contains('30 day') || cleanPeriod.contains('1 month')) return 30;
-    if (cleanPeriod.contains('90 day') || cleanPeriod.contains('3 month')) return 90;
+    if (cleanPeriod.contains('30 day')) return 30;
+    if (cleanPeriod.contains('90 day')) return 90;
 
+    // Custom date range filter selected in calendar
     if (_startDate != null && _endDate != null) {
       return _endDate!.difference(_startDate!).inDays + 1;
     }
 
-    if (cleanPeriod.contains('week')) {
-      return 7;
-    } else if (cleanPeriod.contains('month')) {
+    // Dynamic monthly target (returns 31 for March/August, 30 for April/September, etc.)
+    if (cleanPeriod.contains('1 month') || cleanPeriod.contains('month')) {
       final now = DateTime.now();
       return DateUtils.getDaysInMonth(now.year, now.month);
+    }
+
+    if (cleanPeriod.contains('week')) {
+      return 7;
     } else if (cleanPeriod.contains('year')) {
       return 365;
     }
@@ -162,8 +167,14 @@ class ReportProvider extends ChangeNotifier {
   }
 
   bool isHabitActiveInRange(HabitModel habit) {
-    final DateTime createdAt = habit.createdAt;
+    // Truncate time off createdAt to evaluate pure calendar dates
+    final DateTime createdDateOnly = DateTime(
+      habit.createdAt.year,
+      habit.createdAt.month,
+      habit.createdAt.day,
+    );
 
+    // 1. If the habit has completion logs within the selected filter, show it
     final List<DateTime> safeCompletedDates = (habit.completedDates as List?)
         ?.map((e) => _parseToDate(e))
         .whereType<DateTime>()
@@ -174,13 +185,24 @@ class ReportProvider extends ChangeNotifier {
     safeCompletedDates.any((date) => _isDateInFilter(date));
     if (hasCompletionsInFilter) return true;
 
-    final DateTime filterEnd = _endDate ??
-        _selectedDay ??
-        DateTime(DateTime.now().year, DateTime.now().month + 1, 0);
+    // 2. Normalize filter bounds to cover the full end-of-day (23:59:59)
+    final now = DateTime.now();
+    final DateTime filterEnd;
 
-    if (createdAt.isAfter(filterEnd)) {
+    if (_endDate != null) {
+      filterEnd = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
+    } else if (_selectedDay != null) {
+      filterEnd = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day, 23, 59, 59);
+    } else {
+      // Current Month end date set to last second of the month
+      filterEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    }
+
+    // Goal created today will now properly evaluate: 2026-08-31 00:00 <= 2026-08-31 23:59
+    if (createdDateOnly.isAfter(filterEnd)) {
       return false;
     }
+
     return true;
   }
 

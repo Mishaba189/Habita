@@ -11,7 +11,7 @@ class NotificationModel {
   final bool isSuccess;
   final bool isRead;
   final DateTime createdAt;
-  final String? habitId; // Add field
+  final String? habitId;
 
   NotificationModel({
     required this.id,
