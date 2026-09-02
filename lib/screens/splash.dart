@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
-import '../providers/notification_provider.dart';
+import '../services/app_version_services.dart';
 import 'auth_screen.dart';
 import 'bottom_menu.dart';
 
@@ -35,7 +35,6 @@ class _SplashState extends State<Splash> {
       final androidImplementation = localNotifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
 
-      // execution halts here until user taps Allow or Deny
       await androidImplementation?.requestNotificationsPermission();
       await androidImplementation?.requestExactAlarmsPermission();
 
@@ -47,14 +46,24 @@ class _SplashState extends State<Splash> {
         sound: true,
       );
 
-      // Save flag so it won't prompt again
       await prefs.setBool('is_first_time', false);
     }
 
-    // 2. Timer starts ONLY after the permission dialog is dismissed (or skipped)
+    // 2. CHECK APP VERSION HERE BEFORE NAVIGATING
+    bool requiresUpdate = false;
+    if (mounted) {
+      requiresUpdate = await AppVersionService.isUpdateRequired(context);
+    }
+
+    if (requiresUpdate) {
+      // Stop execution if update bottom sheet was shown
+      return;
+    }
+
+    // 3. Short delay before proceeding to screen navigation
     await Future.delayed(const Duration(milliseconds: 800));
 
-    // 3. Perform navigation
+    // 4. Perform navigation
     final bool isLoggedIn = prefs.getBool('is_logged_in') ?? false;
 
     if (mounted) {
