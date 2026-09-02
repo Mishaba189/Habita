@@ -17,6 +17,7 @@ class AuthProvider with ChangeNotifier {
   static const String keyUserPassword = 'remember_user_password';
   static const String keyIsRememberMe = 'remember_me_status';
 
+
   Future<void> _setLoading(bool value) async {
     _isLoading = value;
     notifyListeners();
@@ -176,7 +177,9 @@ class AuthProvider with ChangeNotifier {
     _setLoading(true);
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await googleSignIn.initialize(
+        serverClientId: '428106498244-3ma7ipq51sflk8gdc9bp6oa78f711os6.apps.googleusercontent.com',
+      );
 
       final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;

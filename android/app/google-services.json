@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "428106498244-2jlb32f61n5t25sllu44b67knbrbrck0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.habita",
+            "certificate_hash": "a60ebfb164d2e273e76758c07ec8cc908c07781d"
+          }
+        },
+        {
           "client_id": "428106498244-ne4r56ciu6dhfr4gel5l8fteiu8f1tvn.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

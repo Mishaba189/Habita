@@ -415,10 +415,10 @@ class AuthScreen extends StatelessWidget {
             );
           }
         } catch (error) {
-          final errorMessage = authProvider.getReadableMessage(error.toString());
+          debugPrint('GOOGLE_SIGN_IN_ERROR: $error'); // Check VS Code terminal logs
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMessage)),
+              SnackBar(content: Text(error.toString())), // Display raw error on screen
             );
           }
         }
