@@ -108,9 +108,20 @@ class ReportScreen extends StatelessWidget {
             final activeHabits = reportProvider.getActiveHabitsInRange(allHabits);
 
             final overallProgress =
-            reportProvider.calculateProgressPercentage(activeHabits);
-            final achievedCount = reportProvider.getAchievedCount(activeHabits);
-            final unachievedCount = reportProvider.getUnachievedCount(activeHabits);
+            reportProvider.calculateProgressPercentage(
+              activeHabits,
+              habitProvider,
+            );
+            final achievedCount =
+            reportProvider.getAchievedCount(
+              activeHabits,
+              habitProvider,
+            );
+            final unachievedCount =
+            reportProvider.getUnachievedCount(
+              activeHabits,
+              habitProvider,
+            );
 
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
@@ -329,26 +340,11 @@ class ReportScreen extends StatelessWidget {
                             itemBuilder: (context, index) {
                               final habit = activeHabits[index];
 
-                              final int? parsedCustomPeriodDays =
-                              habit.customPeriodDays is int
-                                  ? habit.customPeriodDays as int?
-                                  : int.tryParse(
-                                  habit.customPeriodDays?.toString() ??
-                                      '');
-
-                              final List<DateTime> safeCompletedDates =
-                                  (habit.completedDates as List?)
-                                      ?.map((e) => e is DateTime
-                                      ? e
-                                      : DateTime.parse(e.toString()))
-                                      .toList() ??
-                                      <DateTime>[];
+                              final List<dynamic> safeCompletedDates =
+                                  (habit.completedDates as List?) ?? [];
 
                               final int targetDays =
-                              reportProvider.getFixedTargetDays(
-                                habit.period ?? '',
-                                parsedCustomPeriodDays,
-                              );
+                              habitProvider.calculateTargetDays(habit);
 
                               final int completedDays =
                               reportProvider.getCompletedDaysForRange(
@@ -358,7 +354,9 @@ class ReportScreen extends StatelessWidget {
                               final double ratio = targetDays > 0
                                   ? (completedDays / targetDays).clamp(0.0, 1.0)
                                   : 0.0;
+
                               final int percentage = (ratio * 100).round();
+
                               final bool isAchieved =
                                   targetDays > 0 && completedDays >= targetDays;
 
@@ -368,7 +366,6 @@ class ReportScreen extends StatelessWidget {
 
                               final String subtitleText =
                                   "$completedDays from $targetDays days target";
-
                               return GestureDetector(
                                 onTap: (){
                                   Navigator.push(

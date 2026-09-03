@@ -153,11 +153,6 @@ class YourGoalsReportScreen extends StatelessWidget {
               builder: (context, currentFilter, child) {
                 // Filter habits based on current tab selection
                 final filteredHabits = activeHabits.where((habit) {
-                  final int parsedCustomPeriodDays =
-                  habit.customPeriodDays is int
-                      ? habit.customPeriodDays as int
-                      : int.tryParse(habit.customPeriodDays?.toString() ?? '') ?? 0;
-
                   final List<DateTime> safeCompletedDates =
                       (habit.completedDates as List?)
                           ?.map((e) => e is DateTime
@@ -167,10 +162,8 @@ class YourGoalsReportScreen extends StatelessWidget {
                           .toList() ??
                           <DateTime>[];
 
-                  final int targetDays = reportProvider.getFixedTargetDays(
-                    habit.period ?? '',
-                    parsedCustomPeriodDays,
-                  );
+                  final int targetDays =
+                  habitProvider.calculateTargetDays(habit);
 
                   final int completedDays =
                   reportProvider.getCompletedDaysForRange(
@@ -183,8 +176,10 @@ class YourGoalsReportScreen extends StatelessWidget {
                   switch (currentFilter) {
                     case GoalFilter.achieved:
                       return isAchieved;
+
                     case GoalFilter.unachieved:
                       return !isAchieved;
+
                     case GoalFilter.all:
                     default:
                       return true;
@@ -217,15 +212,19 @@ class YourGoalsReportScreen extends StatelessWidget {
                               label: 'Achieved',
                               filter: GoalFilter.achieved,
                               currentFilter: currentFilter,
-                              count:
-                              reportProvider.getAchievedCount(activeHabits),
+                              count: reportProvider.getAchievedCount(
+                                activeHabits,
+                                habitProvider,
+                              ),
                             ),
                             _buildFilterTab(
                               label: 'Unachieved',
                               filter: GoalFilter.unachieved,
                               currentFilter: currentFilter,
-                              count: reportProvider
-                                  .getUnachievedCount(activeHabits),
+                              count: reportProvider.getUnachievedCount(
+                                activeHabits,
+                                habitProvider,
+                              ),
                             ),
                           ],
                         ),
@@ -267,11 +266,6 @@ class YourGoalsReportScreen extends StatelessWidget {
                             itemBuilder: (context, index) {
                               final habit = filteredHabits[index];
 
-                              final int parsedCustomPeriodDays =
-                              habit.customPeriodDays is int
-                                  ? habit.customPeriodDays as int
-                                  : int.tryParse(habit.customPeriodDays?.toString() ?? '') ?? 0;
-
                               final List<DateTime> safeCompletedDates =
                                   (habit.completedDates as List?)
                                       ?.map((e) => e is DateTime
@@ -282,10 +276,8 @@ class YourGoalsReportScreen extends StatelessWidget {
                                       <DateTime>[];
 
                               final int targetDays =
-                              reportProvider.getFixedTargetDays(
-                                habit.period ?? '',
-                                parsedCustomPeriodDays,
-                              );
+                              habitProvider.calculateTargetDays(habit);
+
 
                               final int completedDays = reportProvider
                                   .getCompletedDaysForRange(

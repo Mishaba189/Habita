@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/habit_model.dart';
+import 'habit_provider.dart';
 
 class ReportProvider extends ChangeNotifier {
   DateTime? _selectedDay;
@@ -64,43 +65,7 @@ class ReportProvider extends ChangeNotifier {
     }
   }
 
-  int getFixedTargetDays(String period, dynamic customPeriodDays) {
-    final int? parsedCustom = customPeriodDays is int
-        ? customPeriodDays
-        : int.tryParse(customPeriodDays?.toString() ?? '');
 
-    if (period.trim() == 'Custom' && parsedCustom != null && parsedCustom > 0) {
-      return parsedCustom;
-    }
-
-    final String cleanPeriod = period.trim().toLowerCase();
-
-    // Explicit day targets
-    if (cleanPeriod.contains('7 day')) return 7;
-    if (cleanPeriod.contains('14 day')) return 14;
-    if (cleanPeriod.contains('30 day')) return 30;
-    if (cleanPeriod.contains('90 day')) return 90;
-
-    // Custom date range filter selected in calendar
-    if (_startDate != null && _endDate != null) {
-      return _endDate!.difference(_startDate!).inDays + 1;
-    }
-
-    // Dynamic monthly target (returns 31 for March/August, 30 for April/September, etc.)
-    if (cleanPeriod.contains('1 month') || cleanPeriod.contains('month')) {
-      final now = DateTime.now();
-      return DateUtils.getDaysInMonth(now.year, now.month);
-    }
-
-    if (cleanPeriod.contains('week')) {
-      return 7;
-    } else if (cleanPeriod.contains('year')) {
-      return 365;
-    }
-
-    final now = DateTime.now();
-    return DateUtils.getDaysInMonth(now.year, now.month);
-  }
 
   int getCompletedDaysForRange(List<dynamic> completedDates) {
     return completedDates
@@ -110,62 +75,71 @@ class ReportProvider extends ChangeNotifier {
         .length;
   }
 
-  int calculateProgressPercentage(List<dynamic> habits) {
+  int calculateProgressPercentage(
+      List<dynamic> habits,
+      HabitProvider habitProvider,
+      ) {
     if (habits.isEmpty) return 0;
 
     int totalTargetDaysSum = 0;
     int totalCompletedDaysSum = 0;
 
     for (final habit in habits) {
-      final int? parsedCustomPeriodDays = habit.customPeriodDays is int
-          ? habit.customPeriodDays as int?
-          : int.tryParse(habit.customPeriodDays?.toString() ?? '');
+      final List<dynamic> safeCompletedDates =
+          (habit.completedDates as List?) ?? [];
 
-      final List<dynamic> safeCompletedDates = (habit.completedDates as List?) ?? [];
+      final int habitTarget =
+      habitProvider.calculateTargetDays(habit);
 
-      final int habitTarget = getFixedTargetDays(
-        habit.period ?? '',
-        parsedCustomPeriodDays,
-      );
-      final int completed = getCompletedDaysForRange(safeCompletedDates);
+      final int completed =
+      getCompletedDaysForRange(safeCompletedDates);
 
       totalTargetDaysSum += habitTarget;
       totalCompletedDaysSum += completed;
     }
 
     if (totalTargetDaysSum == 0) return 0;
-    final double ratio = (totalCompletedDaysSum / totalTargetDaysSum).clamp(0.0, 1.0);
+
+    final double ratio =
+    (totalCompletedDaysSum / totalTargetDaysSum)
+        .clamp(0.0, 1.0);
+
     return (ratio * 100).round();
   }
 
-  int getAchievedCount(List<dynamic> habits) {
+  int getAchievedCount(
+      List<dynamic> habits,
+      HabitProvider habitProvider,
+      ) {
     int achieved = 0;
 
     for (final habit in habits) {
-      final int? parsedCustomPeriodDays = habit.customPeriodDays is int
-          ? habit.customPeriodDays as int?
-          : int.tryParse(habit.customPeriodDays?.toString() ?? '');
+      final List<dynamic> safeCompletedDates =
+          (habit.completedDates as List?) ?? [];
 
-      final List<dynamic> safeCompletedDates = (habit.completedDates as List?) ?? [];
+      final int habitTarget =
+      habitProvider.calculateTargetDays(habit);
 
-      final int habitTarget = getFixedTargetDays(
-        habit.period ?? '',
-        parsedCustomPeriodDays,
-      );
-
-      final int completed = getCompletedDaysForRange(safeCompletedDates);
+      final int completed =
+      getCompletedDaysForRange(safeCompletedDates);
 
       if (habitTarget > 0 && completed >= habitTarget) {
         achieved++;
       }
     }
+
     return achieved;
   }
 
-  int getUnachievedCount(List<dynamic> habits) {
-    return habits.length - getAchievedCount(habits);
-  }
 
+
+  int getUnachievedCount(
+      List<dynamic> habits,
+      HabitProvider habitProvider,
+      ) {
+    return habits.length -
+        getAchievedCount(habits, habitProvider);
+  }
   bool isHabitActiveInRange(HabitModel habit) {
     // Truncate time off createdAt to evaluate pure calendar dates
     final DateTime createdDateOnly = DateTime(
@@ -209,4 +183,6 @@ class ReportProvider extends ChangeNotifier {
   List<HabitModel> getActiveHabitsInRange(List<HabitModel> habits) {
     return habits.where((habit) => isHabitActiveInRange(habit)).toList();
   }
+
+
 }

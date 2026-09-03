@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../models/habit_model.dart';
+import '../providers/habit_provider.dart';
 
 class GoalDetailsScreen extends StatelessWidget {
   final HabitModel habit;
@@ -13,16 +15,19 @@ class GoalDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Calculate Start Date, Target Days, End Date, & Today
-    final DateTime startDate = habit.createdAt;
-    final int targetDays = _getCalculatedTargetDays();
+    final habitProvider =
+    Provider.of<HabitProvider>(context, listen: false);
 
-    // Corrected End Date: Add (targetDays - 1) days so a 5-day goal encompasses exactly 5 calendar days.
-    final DateTime endDate = targetDays > 0
-        ? startDate.add(Duration(days: targetDays - 1))
-        : startDate;
+    final DateTime startDate = habit.createdAt;
+
+    final int targetDays =
+    habitProvider.calculateTargetDays(habit);
+
+    final DateTime endDate =
+    habitProvider.calculateEndDate(habit);
 
     final DateTime today = DateTime.now();
+
 
     // 2. Parse Safe Completed Dates
     final List<DateTime> safeCompletedDates = (habit.completedDates as List?)
@@ -59,6 +64,7 @@ class GoalDetailsScreen extends StatelessWidget {
     }
 
     final String displayTitle = habit.goal.isNotEmpty ? habit.goal : habit.habitName;
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -108,25 +114,6 @@ class GoalDetailsScreen extends StatelessWidget {
     );
   }
 
-  int _getCalculatedTargetDays() {
-    if (habit.period == 'Custom') {
-      if (habit.customPeriodDays is int) {
-        return habit.customPeriodDays as int;
-      }
-      return int.tryParse(habit.customPeriodDays?.toString() ?? '') ?? 0;
-    }
-    switch (habit.period?.toLowerCase()) {
-      case 'daily':
-      case 'everyday':
-        return 30;
-      case 'weekly':
-        return 7;
-      case 'monthly':
-        return 30;
-      default:
-        return 30;
-    }
-  }
 
   Widget _buildCalendarCard({
     required DateTime startDate,
@@ -210,6 +197,27 @@ class GoalDetailsScreen extends StatelessWidget {
         }
         for (int i = 1; i <= daysInMonth; i++) {
           gridDates.add(DateTime(year, month, i));
+        }
+
+        String _getDayName(int weekday) {
+          switch (weekday) {
+            case DateTime.monday:
+              return 'Mon';
+            case DateTime.tuesday:
+              return 'Tue';
+            case DateTime.wednesday:
+              return 'Wed';
+            case DateTime.thursday:
+              return 'Thu';
+            case DateTime.friday:
+              return 'Fri';
+            case DateTime.saturday:
+              return 'Sat';
+            case DateTime.sunday:
+              return 'Sun';
+            default:
+              return '';
+          }
         }
 
         return Container(
@@ -352,7 +360,9 @@ class GoalDetailsScreen extends StatelessWidget {
                 itemCount: gridDates.length,
                 itemBuilder: (context, index) {
                   final date = gridDates[index];
-                  final isSelectedDay = isSameDay(date, tempSelectedDay);
+
+                  final bool isSelectedDay =
+                  isSameDay(date, tempSelectedDay);
 
                   final bool isWithinRange =
                       !isDateOnlyBefore(date, startDate) &&
@@ -362,19 +372,214 @@ class GoalDetailsScreen extends StatelessWidget {
                         (completedDate) => isSameDay(completedDate, date),
                   );
 
-                  final bool isPastOrToday = !isDateOnlyAfter(date, today);
-                  final bool isFailed =
-                      isWithinRange && isPastOrToday && !isCompleted;
-                  final bool isUpcoming =
-                      isWithinRange && isDateOnlyAfter(date, today);
+                  final String habitType =
+                  habit.habitType.trim().toLowerCase();
 
-                  final bool isFirstInRow = index % 7 == 0;
-                  final bool isLastInRow = index % 7 == 6;
+                  final String period =
+                  habit.period.trim().toLowerCase();
 
-                  BorderRadius pillRadius = BorderRadius.horizontal(
-                    left: isFirstInRow ? const Radius.circular(6) : Radius.zero,
-                    right: isLastInRow ? const Radius.circular(6) : Radius.zero,
+                  // ----------------------------------------------------------
+                  // HABIT TYPE
+                  // ----------------------------------------------------------
+
+                  final bool isWeekly =
+                      period.contains('week') ||
+                          habitType.contains('weekly');
+
+                  final bool isMonthly =
+                      period.contains('month') ||
+                          habitType.contains('monthly');
+
+                  final bool isWeekdayHabit =
+                  habitType.contains('weekday');
+
+                  final bool isWeekendHabit =
+                  habitType.contains('weekend');
+
+                  final bool isSpecificDayHabit =
+                  habitType.contains('specific');
+
+                  // ----------------------------------------------------------
+                  // DATE STATUS
+                  // ----------------------------------------------------------
+
+                  final DateTime dateOnly =
+                  DateTime(date.year, date.month, date.day);
+
+                  final DateTime todayOnly =
+                  DateTime(today.year, today.month, today.day);
+
+                  final bool isPastOrToday =
+                  !dateOnly.isAfter(todayOnly);
+
+                  // ----------------------------------------------------------
+                  // CHECK WHETHER THIS DATE IS AN APPLICABLE TARGET DAY
+                  // ----------------------------------------------------------
+
+                  bool isApplicableDay(DateTime targetDate) {
+                    // Weekly and monthly are handled separately
+                    if (isWeekly || isMonthly) {
+                      return true;
+                    }
+
+                    // Weekdays → Monday to Friday
+                    if (isWeekdayHabit) {
+                      return targetDate.weekday >= DateTime.monday &&
+                          targetDate.weekday <= DateTime.friday;
+                    }
+
+                    // Weekends → Saturday and Sunday
+                    if (isWeekendHabit) {
+                      return targetDate.weekday == DateTime.saturday ||
+                          targetDate.weekday == DateTime.sunday;
+                    }
+
+                    // Specific Days
+                    if (isSpecificDayHabit) {
+                      final String dayName = _getDayName(targetDate.weekday);
+
+                      return (habit.specificDays ?? []).contains(dayName);
+                    }
+
+                    // Everyday / Daily
+                    return true;
+                  }
+
+                  final bool isApplicableTargetDay =
+                      isWithinRange && isApplicableDay(date);
+
+                  // ----------------------------------------------------------
+                  // WEEKLY COMPLETION
+                  // ----------------------------------------------------------
+
+                  bool hasCompletionInSameWeek(DateTime targetDate) {
+                    final int daysFromMonday =
+                        targetDate.weekday - DateTime.monday;
+
+                    final DateTime weekStart = DateTime(
+                      targetDate.year,
+                      targetDate.month,
+                      targetDate.day,
+                    ).subtract(
+                      Duration(days: daysFromMonday),
+                    );
+
+                    final DateTime weekEnd =
+                    weekStart.add(const Duration(days: 6));
+
+                    return completedDates.any((completedDate) {
+                      final DateTime completed = DateTime(
+                        completedDate.year,
+                        completedDate.month,
+                        completedDate.day,
+                      );
+
+                      return !completed.isBefore(weekStart) &&
+                          !completed.isAfter(weekEnd);
+                    });
+                  }
+
+                  // ----------------------------------------------------------
+                  // MONTHLY COMPLETION
+                  // ----------------------------------------------------------
+
+                  bool hasCompletionInSameMonth(DateTime targetDate) {
+                    return completedDates.any(
+                          (completedDate) =>
+                      completedDate.year == targetDate.year &&
+                          completedDate.month == targetDate.month,
+                    );
+                  }
+
+                  // ----------------------------------------------------------
+                  // STATUS FLAGS
+                  // ----------------------------------------------------------
+
+                  bool isFailed = false;
+                  bool isUpcoming = false;
+
+                  if (isWithinRange) {
+                    // --------------------------------------------------------
+                    // WEEKLY HABIT
+                    // --------------------------------------------------------
+                    if (isWeekly) {
+                      final bool weekHasCompletion =
+                      hasCompletionInSameWeek(date);
+
+                      if (isCompleted) {
+                        // Actual completed day → GREEN
+                      } else if (weekHasCompletion) {
+                        // Another day in this week was completed.
+                        // No highlight on the remaining days.
+                      } else if (isPastOrToday) {
+                        isFailed = true;
+                      } else {
+                        isUpcoming = true;
+                      }
+                    }
+
+                    // --------------------------------------------------------
+                    // MONTHLY HABIT
+                    // --------------------------------------------------------
+                    else if (isMonthly) {
+                      final bool monthHasCompletion =
+                      hasCompletionInSameMonth(date);
+
+                      if (isCompleted) {
+                        // Actual completed day → GREEN
+                      } else if (monthHasCompletion) {
+                        // Another day in this month was completed.
+                        // No highlight on remaining days.
+                      } else if (isPastOrToday) {
+                        isFailed = true;
+                      } else {
+                        isUpcoming = true;
+                      }
+                    }
+
+                    // --------------------------------------------------------
+                    // WEEKDAYS / WEEKENDS / SPECIFIC DAYS / EVERYDAY
+                    // --------------------------------------------------------
+                    else if (isApplicableTargetDay) {
+                      if (isCompleted) {
+                        // GREEN
+                      } else if (isPastOrToday) {
+                        // Applicable target day was missed → RED
+                        isFailed = true;
+                      } else {
+                        // Applicable future target day → GRAY
+                        isUpcoming = true;
+                      }
+                    }
+
+                    // IMPORTANT:
+                    // If !isApplicableTargetDay, nothing happens.
+                    // Therefore the date remains NORMAL.
+                  }
+
+                  // ----------------------------------------------------------
+                  // ROW BORDER
+                  // ----------------------------------------------------------
+
+                  final bool isFirstInRow =
+                      index % 7 == 0;
+
+                  final bool isLastInRow =
+                      index % 7 == 6;
+
+                  final BorderRadius pillRadius =
+                  BorderRadius.horizontal(
+                    left: isFirstInRow
+                        ? const Radius.circular(6)
+                        : Radius.zero,
+                    right: isLastInRow
+                        ? const Radius.circular(6)
+                        : Radius.zero,
                   );
+
+                  // ----------------------------------------------------------
+                  // UI
+                  // ----------------------------------------------------------
 
                   return GestureDetector(
                     onTap: () {
@@ -401,7 +606,11 @@ class GoalDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       )
-                          : isWithinRange && isCompleted
+
+                      // COMPLETED → GREEN
+                          : isWithinRange &&
+                          isCompleted &&
+                          isApplicableDay(date)
                           ? Container(
                         height: 26,
                         width: double.infinity,
@@ -419,7 +628,9 @@ class GoalDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       )
-                          : isFailed
+
+                      // MISSED → RED
+                          : isApplicableTargetDay && isFailed
                           ? Container(
                         height: 26,
                         width: double.infinity,
@@ -437,7 +648,9 @@ class GoalDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       )
-                          : isUpcoming
+
+                      // UPCOMING → GRAY
+                          : isApplicableTargetDay && isUpcoming
                           ? Container(
                         height: 26,
                         width: double.infinity,
@@ -455,6 +668,8 @@ class GoalDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       )
+
+                      // NORMAL / NON-APPLICABLE
                           : Container(
                         alignment: Alignment.center,
                         child: Text(

@@ -168,20 +168,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return true;
   }
 
-  Map<String, dynamic> _calculateGoalProgress(HabitModel habit, DateTime today) {
-    final totalTargetDays = _getPeriodDurationInDays(habit.period, habit.customPeriodDays);
+  Map<String, dynamic> _calculateGoalProgress(
+      HabitModel habit,
+      DateTime today,
+      HabitProvider habitProvider,
+      ) {
+    final totalTargetDays =
+    habitProvider.calculateTargetDays(habit);
 
-    // Count completions within current period window
-    final completedCount = habit.completedDates.where((dateKey) {
-      final date = _parseDateKey(dateKey);
-      return date != null && _isDateWithinPeriod(habit.createdAt, habit.period, habit.customPeriodDays, date);
-    }).length;
+    final completedCount =
+        habit.completedDates.where((dateKey) {
+          final date = _parseDateKey(dateKey);
 
-    final double progressRatio = totalTargetDays > 0 ? (completedCount / totalTargetDays).clamp(0.0, 1.0) : 0.0;
+          return date != null &&
+              _isDateWithinPeriod(
+                habit.createdAt,
+                habit.period,
+                habit.customPeriodDays,
+                date,
+              );
+        }).length;
+
+    final double progressRatio =
+    totalTargetDays > 0
+        ? (completedCount / totalTargetDays)
+        .clamp(0.0, 1.0)
+        : 0.0;
 
     return {
       'progressRatio': progressRatio,
-      'progressText': "$completedCount from $totalTargetDays days target",
+      'progressText':
+      "$completedCount from $totalTargetDays days target",
     };
   }
 
@@ -656,7 +673,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             separatorBuilder: (context, index) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final habitGoal = displayedGoals[index];
-                              final progressMetrics = _calculateGoalProgress(habitGoal, today);
+                              final progressMetrics =
+                              _calculateGoalProgress(
+                                habitGoal,
+                                today,
+                                habitProvider,
+                              );
 
                               return GestureDetector(
                                 onTap:(){

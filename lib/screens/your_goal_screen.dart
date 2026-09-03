@@ -20,18 +20,6 @@ class YourGoalsScreen extends StatelessWidget {
     this.onDelete,
   });
 
-  /// Helper to get the total target days from period string
-  int _getTotalDays(String period, String? customPeriodDays) {
-    if (period.contains('7 Days')) return 7;
-    if (period.contains('14 Days')) return 14;
-    if (period.contains('30 Days') || period.contains('1 Month')) return 30;
-    if (period.contains('90 Days') || period.contains('3 Months')) return 90;
-    if (period == 'Custom' && customPeriodDays != null) {
-      return int.tryParse(customPeriodDays) ?? 30;
-    }
-    return 30;
-  }
-
   /// Helper to calculate current progress directly from completed dates count
   int _calculateCompletedDaysProgress(List<String> completedDates, int totalDays) {
     return completedDates.length.clamp(0, totalDays);
@@ -102,11 +90,17 @@ class YourGoalsScreen extends StatelessWidget {
                       separatorBuilder: (context, index) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
                         final HabitModel goal = sortedGoals[index];
-                        final int totalDays = _getTotalDays(goal.period, goal.customPeriodDays);
-                        final int currentProgress = _calculateCompletedDaysProgress(
+
+                        // Calculate target based on habit type + period
+                        final int totalDays = habitProvider.calculateTargetDays(goal);
+
+                        // Calculate how many target days have been completed
+                        final int currentProgress =
+                        _calculateCompletedDaysProgress(
                           goal.completedDates,
                           totalDays,
                         );
+
                         final double progressRatio = totalDays > 0
                             ? (currentProgress / totalDays).clamp(0.0, 1.0)
                             : 0.0;

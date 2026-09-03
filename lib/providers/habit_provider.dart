@@ -60,6 +60,13 @@ class HabitProvider with ChangeNotifier {
   Future<void> fetchGoals() async {
     await fetchHabits();
   }
+  DateTime calculateEndDate(HabitModel habit) {
+    return _calculateEndDate(
+      habit.createdAt,
+      habit.period,
+      habit.customPeriodDays,
+    );
+  }
 
   Future<bool> createHabit({
     required String goal,
@@ -251,4 +258,183 @@ class HabitProvider with ChangeNotifier {
     }
   }
 
+  /// Unified function to calculate target days/occurrences for any habit scenario
+  int calculateTargetDays(HabitModel habit) {
+    final DateTime startDate = habit.createdAt;
+
+    final DateTime endDate = _calculateEndDate(
+      startDate,
+      habit.period,
+      habit.customPeriodDays,
+    );
+
+    final String type = habit.habitType.trim().toLowerCase();
+
+    // Weekdays (Mon-Fri)
+    if (type.contains('weekday')) {
+      return _countDays(
+        startDate,
+        endDate,
+            (date) =>
+        date.weekday >= DateTime.monday &&
+            date.weekday <= DateTime.friday,
+      );
+    }
+
+    // Weekends Only
+    if (type.contains('weekend')) {
+      return _countDays(
+        startDate,
+        endDate,
+            (date) =>
+        date.weekday == DateTime.saturday ||
+            date.weekday == DateTime.sunday,
+      );
+    }
+
+    // Specific Days
+    if (type.contains('specific')) {
+      return _countSpecificDays(
+        startDate,
+        endDate,
+        habit.specificDays ?? [],
+      );
+    }
+
+    // Everyday
+    if (type.contains('everyday')) {
+      return endDate.difference(startDate).inDays + 1;
+    }
+
+    // Weekly
+    if (type == 'weekly') {
+      return _countWeeks(startDate, endDate);
+    }
+
+    // Monthly
+    if (type == 'monthly') {
+      return _countMonths(startDate, endDate);
+    }
+
+    return endDate.difference(startDate).inDays + 1;
+  }
+
+  DateTime _calculateEndDate(
+      DateTime start,
+      String period,
+      String? customPeriodDays,
+      ) {
+    final String p = period.trim().toLowerCase();
+    final match = RegExp(r'\d+').firstMatch(p);
+
+    if (match != null) {
+      final int number = int.parse(match.group(0)!);
+
+      // Weeks
+      if (p.contains('week')) {
+        return start.add(
+          Duration(days: (number * 7) - 1),
+        );
+      }
+
+      // Months
+      if (p.contains('month')) {
+        return DateTime(
+          start.year,
+          start.month + number,
+          start.day,
+        );
+      }
+
+      // Years
+      if (p.contains('year')) {
+        return DateTime(
+          start.year + number,
+          start.month,
+          start.day,
+        ).subtract(
+          const Duration(days: 1),
+        );
+      }
+
+      // Days
+      if (p.contains('day')) {
+        return start.add(
+          Duration(days: number - 1),
+        );
+      }
+    }
+
+    // Custom period
+    if (p == 'custom') {
+      final int days =
+          int.tryParse(customPeriodDays ?? '') ?? 7;
+
+      return start.add(
+        Duration(days: days - 1),
+      );
+    }
+
+    // Fallback: 7 days
+    return start.add(
+      const Duration(days: 6),
+    );
+  }
+
+  /// Helper: Count specific selected days (e.g., Mon, Thu)
+  int _countSpecificDays(DateTime start, DateTime end, List<String> specificDays) {
+    return _countDays(start, end, (date) {
+      String dayName = _getDayName(date.weekday);
+      return specificDays.contains(dayName);
+    });
+  }
+
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1: return 'Mon';
+      case 2: return 'Tue';
+      case 3: return 'Wed';
+      case 4: return 'Thu';
+      case 5: return 'Fri';
+      case 6: return 'Sat';
+      case 7: return 'Sun';
+      default: return '';
+    }
+  }
+
+  /// Helper: Count total weeks in period
+  int _countWeeks(DateTime start, DateTime end) {
+    int totalDays = end.difference(start).inDays + 1;
+    return (totalDays / 7).ceil();
+  }
+
+  /// Helper: Count total months in period
+  int _countMonths(DateTime start, DateTime end) {
+    int yearDiff = end.year - start.year;
+    int monthDiff = end.month - start.month;
+    int totalMonths = yearDiff * 12 + monthDiff;
+    if (end.day >= start.day) totalMonths++;
+    return totalMonths > 0 ? totalMonths : 1;
+  }
+
+  int _countDays(
+      DateTime start,
+      DateTime end,
+      bool Function(DateTime) condition,
+      ) {
+    int count = 0;
+    DateTime current = start;
+
+    while (!current.isAfter(end)) {
+      if (condition(current)) {
+        count++;
+      }
+
+      current = current.add(
+        const Duration(days: 1),
+      );
+    }
+
+    return count;
+  }
 }
