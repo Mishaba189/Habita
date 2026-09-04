@@ -75,6 +75,7 @@ class HabitProvider with ChangeNotifier {
     required String customPeriodDays,
     required String habitType,
     required Set<String> specificDays,
+    NotificationProvider? notificationProvider,
   }) async {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -110,6 +111,11 @@ class HabitProvider with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       });
       await fetchHabits();
+
+      if (notificationProvider != null) {
+        await notificationProvider.updateHabits(_habits);
+      }
+
       return true;
     } catch (e) {
       _isLoading = false;
@@ -220,6 +226,7 @@ class HabitProvider with ChangeNotifier {
     required String customPeriodDays,
     required String habitType,
     required Set<String> specificDays,
+    NotificationProvider? notificationProvider,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -246,6 +253,10 @@ class HabitProvider with ChangeNotifier {
           habitType: habitType,
           specificDays: specificDays.toList(),
         );
+      }
+
+      if (notificationProvider != null) {
+        await notificationProvider.updateHabits(_habits);
       }
 
       _isLoading = false;

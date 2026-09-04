@@ -361,12 +361,13 @@ class GoalDetailsScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final date = gridDates[index];
 
-                  final bool isSelectedDay =
-                  isSameDay(date, tempSelectedDay);
-
                   final bool isWithinRange =
                       !isDateOnlyBefore(date, startDate) &&
                           !isDateOnlyAfter(date, endDate);
+
+
+
+
 
                   final bool isCompleted = completedDates.any(
                         (completedDate) => isSameDay(completedDate, date),
@@ -375,19 +376,17 @@ class GoalDetailsScreen extends StatelessWidget {
                   final String habitType =
                   habit.habitType.trim().toLowerCase();
 
-                  final String period =
-                  habit.period.trim().toLowerCase();
 
                   // ----------------------------------------------------------
                   // HABIT TYPE
                   // ----------------------------------------------------------
 
                   final bool isWeekly =
-                      period.contains('week') ||
+                      habitType == 'weekly' ||
                           habitType.contains('weekly');
 
                   final bool isMonthly =
-                      period.contains('month') ||
+                      habitType == 'monthly' ||
                           habitType.contains('monthly');
 
                   final bool isWeekdayHabit =
@@ -417,7 +416,8 @@ class GoalDetailsScreen extends StatelessWidget {
                   // ----------------------------------------------------------
 
                   bool isApplicableDay(DateTime targetDate) {
-                    // Weekly and monthly are handled separately
+
+                    // Weekly and Monthly are handled separately
                     if (isWeekly || isMonthly) {
                       return true;
                     }
@@ -436,21 +436,24 @@ class GoalDetailsScreen extends StatelessWidget {
 
                     // Specific Days
                     if (isSpecificDayHabit) {
-                      final String dayName = _getDayName(targetDate.weekday);
+                      final String dayName =
+                      _getDayName(targetDate.weekday);
 
                       return (habit.specificDays ?? []).contains(dayName);
                     }
 
-                    // Everyday / Daily
+                    // Everyday
                     return true;
                   }
 
                   final bool isApplicableTargetDay =
                       isWithinRange && isApplicableDay(date);
 
-                  // ----------------------------------------------------------
-                  // WEEKLY COMPLETION
-                  // ----------------------------------------------------------
+                  final bool isSelectedDay =
+                      isSameDay(date, tempSelectedDay) &&
+                          isApplicableTargetDay;
+
+
 
                   bool hasCompletionInSameWeek(DateTime targetDate) {
                     final int daysFromMonday =
@@ -460,9 +463,7 @@ class GoalDetailsScreen extends StatelessWidget {
                       targetDate.year,
                       targetDate.month,
                       targetDate.day,
-                    ).subtract(
-                      Duration(days: daysFromMonday),
-                    );
+                    ).subtract(Duration(days: daysFromMonday));
 
                     final DateTime weekEnd =
                     weekStart.add(const Duration(days: 6));
@@ -479,9 +480,9 @@ class GoalDetailsScreen extends StatelessWidget {
                     });
                   }
 
-                  // ----------------------------------------------------------
-                  // MONTHLY COMPLETION
-                  // ----------------------------------------------------------
+// ----------------------------------------------------------
+// MONTHLY COMPLETION
+// ----------------------------------------------------------
 
                   bool hasCompletionInSameMonth(DateTime targetDate) {
                     return completedDates.any(
@@ -491,70 +492,81 @@ class GoalDetailsScreen extends StatelessWidget {
                     );
                   }
 
-                  // ----------------------------------------------------------
-                  // STATUS FLAGS
-                  // ----------------------------------------------------------
+// ----------------------------------------------------------
+// STATUS
+// ----------------------------------------------------------
 
                   bool isFailed = false;
                   bool isUpcoming = false;
+                  bool isGreen = false;
 
+// IMPORTANT:
+// Only dates inside the goal range can ever be highlighted.
                   if (isWithinRange) {
-                    // --------------------------------------------------------
-                    // WEEKLY HABIT
-                    // --------------------------------------------------------
+
+                    // ========================================================
+                    // WEEKLY
+                    // ========================================================
                     if (isWeekly) {
                       final bool weekHasCompletion =
                       hasCompletionInSameWeek(date);
 
                       if (isCompleted) {
-                        // Actual completed day → GREEN
+                        isGreen = true;
                       } else if (weekHasCompletion) {
                         // Another day in this week was completed.
-                        // No highlight on the remaining days.
-                      } else if (isPastOrToday) {
-                        isFailed = true;
+                        // Leave this date NORMAL.
                       } else {
-                        isUpcoming = true;
+                        // Only highlight the week if there is no completion.
+                        if (isPastOrToday) {
+                          isFailed = true;
+                        } else {
+                          isUpcoming = true;
+                        }
                       }
                     }
 
-                    // --------------------------------------------------------
-                    // MONTHLY HABIT
-                    // --------------------------------------------------------
+                    // ========================================================
+                    // MONTHLY
+                    // ========================================================
                     else if (isMonthly) {
                       final bool monthHasCompletion =
                       hasCompletionInSameMonth(date);
 
                       if (isCompleted) {
-                        // Actual completed day → GREEN
+                        isGreen = true;
                       } else if (monthHasCompletion) {
                         // Another day in this month was completed.
-                        // No highlight on remaining days.
-                      } else if (isPastOrToday) {
-                        isFailed = true;
+                        // Leave this date NORMAL.
                       } else {
-                        isUpcoming = true;
+                        if (isPastOrToday) {
+                          isFailed = true;
+                        } else {
+                          isUpcoming = true;
+                        }
                       }
                     }
 
-                    // --------------------------------------------------------
-                    // WEEKDAYS / WEEKENDS / SPECIFIC DAYS / EVERYDAY
-                    // --------------------------------------------------------
-                    else if (isApplicableTargetDay) {
-                      if (isCompleted) {
-                        // GREEN
-                      } else if (isPastOrToday) {
-                        // Applicable target day was missed → RED
-                        isFailed = true;
-                      } else {
-                        // Applicable future target day → GRAY
-                        isUpcoming = true;
+                    // ========================================================
+                    // SPECIFIC / WEEKDAY / WEEKEND / EVERYDAY
+                    // ========================================================
+                    else {
+
+                      // THIS IS THE IMPORTANT PART.
+                      //
+                      // If this is NOT an applicable day,
+                      // absolutely NOTHING gets highlighted.
+                      if (isApplicableDay(date)) {
+
+                        if (isCompleted) {
+                          isGreen = true;
+                        } else if (isPastOrToday) {
+                          isFailed = true;
+                        } else {
+                          isUpcoming = true;
+                        }
                       }
                     }
-
-                    // IMPORTANT:
-                    // If !isApplicableTargetDay, nothing happens.
-                    // Therefore the date remains NORMAL.
                   }
 
                   // ----------------------------------------------------------

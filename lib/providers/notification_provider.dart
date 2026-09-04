@@ -11,7 +11,6 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/habit_model.dart';
 import '../models/notification_model.dart';
 
-
 class NotificationProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -25,7 +24,10 @@ class NotificationProvider with ChangeNotifier {
   StreamSubscription<QuerySnapshot>? _notificationSubscription;
 
   // Toggle this to TRUE when testing short-term schedule triggers
-  static const bool _isTestingReminders = false;
+  static const bool _isTestingReminders = true;
+
+  static const int _reminderHour = _isTestingReminders ? 15 : 22;
+  static const int _reminderMinute = _isTestingReminders ? 50 : 0;
 
   List<NotificationModel> get notifications => _notifications;
   bool get isLoading => _isLoading;
@@ -40,8 +42,10 @@ class NotificationProvider with ChangeNotifier {
     }).length;
   }
 
+  late final Future<void> _initialization;
+
   NotificationProvider() {
-    _initLocalNotifications();
+    _initialization = _initLocalNotifications();
     _startPeriodicNightlyCheck();
     initNotificationListener();
   }
@@ -137,7 +141,6 @@ class NotificationProvider with ChangeNotifier {
   }
 
   /// Centralized method to handle adding notifications (DB + Phone Taskbar)
-  /// Centralized method to handle adding notifications (DB + Phone Taskbar)
   Future<void> addNotification({
     required String customDocId,
     required String type,
@@ -147,7 +150,6 @@ class NotificationProvider with ChangeNotifier {
     required bool isSuccess,
     String? habitId,
   }) async {
-    // 1. Check global notification setting preference
     final prefs = await SharedPreferences.getInstance();
     final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
 
@@ -174,14 +176,12 @@ class NotificationProvider with ChangeNotifier {
     _notifications.insert(0, notification);
     notifyListeners();
 
-    // Save to Cloud Firestore
     try {
       await docRef.set(notification.toMap());
     } catch (e) {
       debugPrint("Error adding notification to Firestore: $e");
     }
 
-    // 2. Trigger phone system taskbar popup ONLY if notifications are enabled
     if (isEnabled) {
       try {
         final int notificationId = customDocId.hashCode.abs();
@@ -198,71 +198,121 @@ class NotificationProvider with ChangeNotifier {
     }
   }
 
-  Future<void> scheduleHabitReminder({
-    required String habitId,
-    required String habitName,
-    required int hour,
-    required int minute,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
-
-    // Exit immediately if user has disabled notifications in settings
-    if (!isEnabled) {
-      debugPrint("Notifications are globally disabled. Skipping schedule for: $habitName");
-      return;
-    }
-
-    // 2. Schedule the notification
-    final int notificationId = habitId.hashCode.abs();
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate =
-    tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-
-    debugPrint("Scheduling Notification for Habit: $habitName");
-    debugPrint("Current Local Time: $now");
-    debugPrint("Target Scheduled Time: $scheduledDate");
-
-    final Int64List vibrationPattern = Int64List.fromList([0, 500]);
-
-    await _localNotifications.zonedSchedule(
-      id: notificationId,
-      title: 'Uncompleted Habit Reminder 🌙',
-      body:
-      'You haven\'t marked "$habitName" as complete today. Finish it before the day ends!',
-      scheduledDate: scheduledDate,
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          'habit_app_notifications_v1',
-          'App Notifications',
-          channelDescription:
-          'Alerts for habit reminders, goals, and completions',
-          importance: Importance.max,
-          priority: Priority.high,
-          showWhen: true,
-          enableVibration: true,
-          vibrationPattern: vibrationPattern,
-          playSound: true,
-          channelShowBadge: true,
-        ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-          badgeNumber: 1,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+  /// Calculates the habit's target end date
+  DateTime _calculateEndDate(HabitModel habit) {
+    final int targetDays = _getPeriodDays(habit.period, habit.customPeriodDays);
+    final DateTime createdAtDate = DateTime(
+      habit.createdAt.year,
+      habit.createdAt.month,
+      habit.createdAt.day,
     );
+    return createdAtDate.add(Duration(days: targetDays - 1));
+  }
+
+  Future<void> scheduleUpcomingHabitReminders(HabitModel habit) async {
+    await _initialization;
+    final prefs = await SharedPreferences.getInstance();
+    final bool isEnabled =
+        prefs.getBool('push_notifications_enabled') ?? true;
+
+    if (!isEnabled || habit.id == null) return;
+
+    // Cancel old reminders for this habit first.
+    await cancelHabitReminder(habit.id!);
+
+    final now = tz.TZDateTime.now(tz.local);
+    final DateTime endDate = _calculateEndDate(habit);
+
+    for (int i = 0; i < 30; i++) {
+      final DateTime date = DateTime.now().add(Duration(days: i));
+
+      // 1. Don't schedule past the habit's end date.
+      final DateTime checkDateOnly = DateTime(date.year, date.month, date.day);
+      final DateTime endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
+      if (checkDateOnly.isAfter(endDateOnly)) {
+        continue;
+      }
+
+      // 2. Don't schedule days that are not target days.
+      if (!_isHabitApplicableToday(habit, date)) {
+        continue;
+      }
+
+      final String dateKey = _formatDateKey(date);
+
+      // 3. Don't schedule if already completed.
+      if (habit.completedDates.contains(dateKey)) {
+        continue;
+      }
+
+      final tz.TZDateTime scheduledDate = tz.TZDateTime(
+        tz.local,
+        date.year,
+        date.month,
+        date.day,
+        _reminderHour,
+        _reminderMinute,
+      );
+
+      if (scheduledDate.isBefore(now)) {
+        continue;
+      }
+
+      final int notificationId = '${habit.id}_$dateKey'.hashCode.abs();
+
+      await _localNotifications.zonedSchedule(
+        id: notificationId,
+        title: 'Uncompleted Habit Reminder 🌙',
+        body: 'You haven\'t marked "${habit.habitName}" as complete today. Finish it before the day ends!',
+        scheduledDate: scheduledDate,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            'habit_app_notifications_v1',
+            'App Notifications',
+            channelDescription:
+            'Alerts for habit reminders, goals, and completions',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+            enableVibration: true,
+            playSound: true,
+            channelShowBadge: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+
+      debugPrint(
+        'Scheduled ${habit.habitName} reminder for $scheduledDate',
+      );
+    }
   }
 
   Future<void> cancelHabitReminder(String habitId) async {
-    final int notificationId = habitId.hashCode.abs();
+    final int oldNotificationId = habitId.hashCode.abs();
+    await _localNotifications.cancel(id: oldNotificationId);
+
+    for (int i = 0; i < 30; i++) {
+      final DateTime date = DateTime.now().add(Duration(days: i));
+      final String dateKey = _formatDateKey(date);
+      final int notificationId = '${habitId}_$dateKey'.hashCode.abs();
+
+      await _localNotifications.cancel(id: notificationId);
+    }
+  }
+
+  Future<void> cancelHabitReminderForDate(
+      String habitId,
+      DateTime date,
+      ) async {
+    final dateKey = _formatDateKey(date);
+    final notificationId = '${habitId}_$dateKey'.hashCode.abs();
+
     await _localNotifications.cancel(id: notificationId);
   }
 
@@ -300,7 +350,6 @@ class NotificationProvider with ChangeNotifier {
   }
 
   void _startPeriodicNightlyCheck() {
-    // Checks periodically; triggers near Midnight (00:00) for expired goals
     _nightlyTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       final now = DateTime.now();
       if (now.hour == 0 && _cachedHabits.isNotEmpty) {
@@ -309,11 +358,15 @@ class NotificationProvider with ChangeNotifier {
     });
   }
 
-  void updateHabits(List<HabitModel> habits) {
+  Future<void> updateHabits(List<HabitModel> habits) async {
     _cachedHabits = habits;
-    evaluateHabitNotifications(_cachedHabits);
-  }
 
+    for (final habit in habits) {
+      await scheduleUpcomingHabitReminders(habit);
+    }
+
+    await evaluateHabitNotifications(_cachedHabits);
+  }
   Future<void> fetchNotifications() async {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) return;
@@ -434,35 +487,24 @@ class NotificationProvider with ChangeNotifier {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null || habits.isEmpty) return;
 
-    // Guard: Check global preference before running evaluation loop
     final prefs = await SharedPreferences.getInstance();
     final bool isEnabled = prefs.getBool('push_notifications_enabled') ?? true;
 
     if (!isEnabled) {
       debugPrint("Global push notifications disabled. Clearing pending schedules.");
       await cancelAllNotifications();
-      return; // Stop evaluation completely
+      return;
     }
 
     _cachedHabits = habits;
     final DateTime now = DateTime.now();
     final String todayKey = _formatDateKey(now);
 
-    final int reminderHour = _isTestingReminders ? 14 : 22;
-    final int reminderMinute = _isTestingReminders ? 25 : 0;
-
     for (var habit in habits) {
       if (habit.id == null) continue;
 
       final int targetDays = _getPeriodDays(habit.period, habit.customPeriodDays);
-      final DateTime createdAtDate = DateTime(
-        habit.createdAt.year,
-        habit.createdAt.month,
-        habit.createdAt.day,
-      );
-
-      // Calculate final target date
-      final DateTime endDate = createdAtDate.add(Duration(days: targetDays - 1));
+      final DateTime endDate = _calculateEndDate(habit);
       final String endDateKey = _formatDateKey(endDate);
       final bool isTodayCompleted = habit.completedDates.contains(todayKey);
 
@@ -473,24 +515,22 @@ class NotificationProvider with ChangeNotifier {
             _formatDateKey(n.createdAt) == todayKey);
       }
 
-      // -------------------------------------------------------------
-      // 1. DAILY REMINDER SCHEDULING & SYSTEM ALERTS
-      // -------------------------------------------------------------
-      if (isTodayCompleted) {
-        await cancelHabitReminder(habit.id!);
-      } else {
-        await scheduleHabitReminder(
-          habitId: habit.id!,
-          habitName: habit.habitName,
-          hour: reminderHour,
-          minute: reminderMinute,
-        );
+      final bool isApplicableToday = _isHabitApplicableToday(habit, now);
 
-        final bool isTimeForReminder = (now.hour > reminderHour) ||
-            (now.hour == reminderHour && now.minute >= reminderMinute);
+      if (!isApplicableToday) {
+        await cancelHabitReminderForDate(habit.id!, now);
+        debugPrint('Skipping reminder for ${habit.habitName} - today is not an applicable day.');
+      } else if (isTodayCompleted) {
+        await cancelHabitReminderForDate(habit.id!, now);
+        debugPrint('Skipping reminder for ${habit.habitName} - already completed today.');
+      } else {
+        final bool isTimeForReminder =
+            (now.hour > _reminderHour) ||
+                (now.hour == _reminderHour && now.minute >= _reminderMinute);
 
         if (isTimeForReminder && !hasNotificationToday('nightly_missed_reminder')) {
           final String docId = "nightly_missed_reminder_${habit.id}_$todayKey";
+
           await addNotification(
             customDocId: docId,
             type: 'nightly_missed_reminder',
@@ -504,9 +544,7 @@ class NotificationProvider with ChangeNotifier {
         }
       }
 
-      // -------------------------------------------------------------
-      // 2. END DATE & GOAL EVALUATION (PERCENTAGE CALCULATIONS)
-      // -------------------------------------------------------------
+      // Goal Evaluation
       final bool alreadyEvaluated = _notifications.any(
             (n) => (n.type == 'goal_completed' || n.type == 'goal_expired') && n.habitId == habit.id,
       );
@@ -517,7 +555,6 @@ class NotificationProvider with ChangeNotifier {
         final String progressPercent = "${percentageVal.toStringAsFixed(0)}%";
         final String goalTitle = habit.goal.isNotEmpty ? habit.goal : habit.habitName;
 
-        // RULE 1: End Date is Today AND completed today
         if (endDateKey == todayKey && isTodayCompleted) {
           final bool is100Percent = totalCompleted >= targetDays;
           final String docId = "goal_completed_${habit.id}_$todayKey";
@@ -532,9 +569,7 @@ class NotificationProvider with ChangeNotifier {
             isSuccess: is100Percent,
             habitId: habit.id,
           );
-        }
-        // RULE 2: Midnight Expiration Check
-        else if (now.isAfter(endDate.add(const Duration(days: 1))) ||
+        } else if (now.isAfter(endDate.add(const Duration(days: 1))) ||
             (endDateKey == todayKey && now.hour == 0 && !isTodayCompleted)) {
           final String docId = "goal_expired_${habit.id}_$todayKey";
 
@@ -557,13 +592,54 @@ class NotificationProvider with ChangeNotifier {
     await evaluateHabitNotifications(habits);
   }
 
-
   Future<void> cancelAllNotifications() async {
     try {
       await _localNotifications.cancelAll();
       debugPrint("All scheduled push notifications cancelled successfully.");
     } catch (e) {
       debugPrint("Error cancelling notifications: $e");
+    }
+  }
+
+  bool _isHabitApplicableToday(HabitModel habit, DateTime date) {
+    final String type = habit.habitType.trim().toLowerCase();
+
+    if (type.contains('weekday')) {
+      return date.weekday >= DateTime.monday && date.weekday <= DateTime.friday;
+    }
+
+    if (type.contains('weekend')) {
+      return date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+    }
+
+    if (type.contains('specific')) {
+      final String dayName = _getDayName(date.weekday);
+      return (habit.specificDays ?? []).any(
+            (day) => day.trim().toLowerCase() == dayName.toLowerCase(),
+      );
+    }
+
+    return true;
+  }
+
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Mon';
+      case DateTime.tuesday:
+        return 'Tue';
+      case DateTime.wednesday:
+        return 'Wed';
+      case DateTime.thursday:
+        return 'Thu';
+      case DateTime.friday:
+        return 'Fri';
+      case DateTime.saturday:
+        return 'Sat';
+      case DateTime.sunday:
+        return 'Sun';
+      default:
+        return '';
     }
   }
 }

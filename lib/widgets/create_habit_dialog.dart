@@ -523,6 +523,8 @@ void showCreateHabitDialog(
 
                           if (isEdit) {
                             if (goal?.id == null) return;
+                            final notificationProvider =
+                            Provider.of<NotificationProvider>(context, listen: false);
 
                             // Call update function in Provider
                             final success = await habitProvider.updateHabit(
@@ -533,6 +535,7 @@ void showCreateHabitDialog(
                               customPeriodDays: customDays,
                               habitType: selectedHabitType,
                               specificDays: selectedSpecificDays,
+                              notificationProvider: notificationProvider,
                             );
 
                             if (success && dialogContext.mounted) {
@@ -563,6 +566,7 @@ void showCreateHabitDialog(
                               customPeriodDays: customDays,
                               habitType: selectedHabitType,
                               specificDays: selectedSpecificDays,
+                              notificationProvider: notificationProvider,
                             );
 
                             if (success && dialogContext.mounted) {
